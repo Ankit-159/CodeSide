@@ -4,7 +4,7 @@
 
 CodeSide is an open-source, Android-native agentic coding app. It brings a GUI chat, configurable AI providers, and an in-app sandboxed terminal to Android — without relying on Termux as an external app.
 
-> Status: **M1 foundation in progress** (scaffold, CI, chat UI, provider profiles/settings, encrypted key storage). No local APK builds in this dev environment; APKs are built by GitHub Actions.
+> Status: **M1 foundation in progress** (scaffold, chat UI, provider profiles/settings, encrypted key storage).
 
 ## Highlights (planned)
 
@@ -12,26 +12,23 @@ CodeSide is an open-source, Android-native agentic coding app. It brings a GUI c
 - **Bring your own API** — presets for OpenAI, Anthropic, and Google + editable Custom profiles (endpoint/auth/request/response mapping).
 - **In-app terminal** — mini-Termux style PTY shell shared by the user and AI, with package installs from Termux repos (Android 7+ full terminal; Android 5/6 limited fallback).
 - **Security by default** — app-private workspace jail, SAF system picker imports/folder grants, permission-gated commands, encrypted API keys.
-- **Android 5.0+** — `minSdk 21`, `targetSdk 28` (Termux-style execution compatibility for sideloaded builds), ABI splits for `armeabi-v7a` and `arm64-v8a`.
+- **Android 5.0+** — `minSdk 21`, `targetSdk 28`, ABI splits for `armeabi-v7a` and `arm64-v8a`.
 
-## Build & distribution
+## Build
 
-- **Source of truth:** this GitHub repo.
-- **No local APK builds in the dev environment** (expected to fail here).
-- **CI builds APKs** via GitHub Actions on push/PR and uploads debug artifacts (`armeabi-v7a`, `arm64-v8a`).
-
-To build locally on a properly configured machine:
+Requires Android SDK + JDK 17:
 
 ```bash
-# requires Android SDK + JDK 17
 gradle :app:assembleDebug
 ```
+
+GitHub Actions builds debug APK artifacts on push/PR.
 
 ## Project layout
 
 ```text
 app/                  Android app module (Kotlin + Jetpack Compose)
-.github/workflows/    CI workflows (GitHub Actions APK builds)
+.github/workflows/    CI workflows
 gradle/               Gradle version catalog / wrapper properties
 ```
 
