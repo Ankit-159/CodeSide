@@ -4,7 +4,7 @@
 
 CodeSide is an open-source, Android-native agentic coding app. It brings a GUI chat, configurable AI providers, and an in-app sandboxed terminal to Android — without relying on Termux as an external app.
 
-> Status: **M1 foundation in progress** (scaffold, chat UI, provider profiles/settings, encrypted key storage).
+> Status: **M1 foundation + M2 terminal MVP in progress** (chat/providers/settings scaffold, JNI PTY terminal shell, CI builds).
 
 ## Highlights (planned)
 

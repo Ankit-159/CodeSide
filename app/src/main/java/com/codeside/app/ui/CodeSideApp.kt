@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -19,9 +20,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.codeside.app.ui.chat.ChatScreen
 import com.codeside.app.ui.settings.SettingsScreen
+import com.codeside.app.ui.terminal.TerminalScreen
 
 private enum class Dest(val route: String, val label: String) {
     Chat("chat", "Chat"),
+    Terminal("terminal", "Terminal"),
     Settings("settings", "Settings"),
 }
 
@@ -47,6 +50,18 @@ fun CodeSideApp() {
                     label = { Text(Dest.Chat.label) },
                 )
                 NavigationBarItem(
+                    selected = currentRoute == Dest.Terminal.route,
+                    onClick = {
+                        navController.navigate(Dest.Terminal.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Terminal, contentDescription = Dest.Terminal.label) },
+                    label = { Text(Dest.Terminal.label) },
+                )
+                NavigationBarItem(
                     selected = currentRoute == Dest.Settings.route,
                     onClick = {
                         navController.navigate(Dest.Settings.route) {
@@ -67,6 +82,7 @@ fun CodeSideApp() {
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(Dest.Chat.route) { ChatScreen() }
+            composable(Dest.Terminal.route) { TerminalScreen() }
             composable(Dest.Settings.route) { SettingsScreen() }
         }
     }
