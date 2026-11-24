@@ -14,6 +14,12 @@ data class ToolCard(
     val expanded: Boolean = false,
 )
 
+data class ToolCallInfo(
+    val id: String,
+    val name: String,
+    val arguments: String,
+)
+
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val role: ChatRole,
@@ -21,4 +27,8 @@ data class ChatMessage(
     val thinking: String = "",
     val toolCards: List<ToolCard> = emptyList(),
     val isStreaming: Boolean = false,
+    val toolCallId: String? = null,
+    val toolName: String? = null,
+    val toolArgs: String? = null,
+    val toolCalls: List<ToolCallInfo> = emptyList(),
 )

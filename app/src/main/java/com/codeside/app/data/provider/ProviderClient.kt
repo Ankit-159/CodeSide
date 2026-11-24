@@ -6,6 +6,7 @@ import com.codeside.app.data.model.ProviderProfile
 sealed class ProviderEvent {
     data class TextDelta(val text: String) : ProviderEvent()
     data class ThinkingDelta(val text: String) : ProviderEvent()
+    data class ToolCall(val id: String, val name: String, val arguments: String) : ProviderEvent()
     data class Error(val message: String, val throwable: Throwable? = null) : ProviderEvent()
     data object Done : ProviderEvent()
 }

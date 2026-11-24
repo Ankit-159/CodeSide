@@ -4,8 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.codeside.app.CodeSideApplication
+import com.codeside.app.agent.AgentTools
 import com.codeside.app.data.model.ChatMessage
 import com.codeside.app.data.model.ChatRole
+import com.codeside.app.data.model.ToolCard
+import com.codeside.app.data.model.ToolCardState
 import com.codeside.app.data.provider.Cancellable
 import com.codeside.app.data.provider.ProviderEvent
 import com.codeside.app.data.provider.ProviderFactory
@@ -15,6 +18,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
@@ -25,10 +32,13 @@ data class ChatUiState(
 
 class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val settingsStore = (app as CodeSideApplication).settingsStore
+    private val agentTools = AgentTools(app.applicationContext)
+    private val json = Json { ignoreUnknownKeys = true }
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var currentCall: Cancellable? = null
+    private val pendingToolCalls = mutableListOf<ProviderEvent.ToolCall>()
 
     fun onInputChange(value: String) {
         _uiState.update { it.copy(input = value) }
@@ -41,7 +51,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun send() {
         val text = _uiState.value.input.trim()
         if (text.isBlank() || _uiState.value.isStreaming) return
+        val userMsg = ChatMessage(role = ChatRole.USER, content = text)
+        _uiState.update { it.copy(messages = it.messages + userMsg, input = "", error = null) }
+        startAssistantResponse()
+    }
 
+    private fun startAssistantResponse() {
         val profile = settingsStore.activeProfile()
         if (profile == null) {
             _uiState.update { it.copy(error = "No active provider profile. Add one in Settings.") }
@@ -56,29 +71,21 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
-        val userMsg = ChatMessage(role = ChatRole.USER, content = text)
         val assistantMsg = ChatMessage(role = ChatRole.ASSISTANT, content = "", isStreaming = true)
-        _uiState.update {
-            it.copy(
-                messages = it.messages + userMsg + assistantMsg,
-                input = "",
-                isStreaming = true,
-                error = null,
-            )
-        }
+        pendingToolCalls.clear()
+        _uiState.update { it.copy(messages = it.messages + assistantMsg, isStreaming = true, error = null) }
 
         val messagesForApi = _uiState.value.messages.filter { !it.isStreaming }
         val client = ProviderFactory.get(profile.type)
         currentCall = client.streamChat(profile, messagesForApi) { event ->
-            viewModelScope.launch(Dispatchers.Main) {
-                handleEvent(event)
-            }
+            viewModelScope.launch(Dispatchers.Main) { handleEvent(event) }
         }
     }
 
     fun stop() {
         currentCall?.cancel()
         currentCall = null
+        pendingToolCalls.clear()
         _uiState.update { state ->
             state.copy(
                 isStreaming = false,
@@ -91,8 +98,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         when (event) {
             is ProviderEvent.TextDelta -> updateStreaming { it.copy(content = it.content + event.text) }
             is ProviderEvent.ThinkingDelta -> updateStreaming { it.copy(thinking = it.thinking + event.text) }
+            is ProviderEvent.ToolCall -> {
+                pendingToolCalls += event
+                updateStreaming {
+                    it.copy(toolCards = it.toolCards + ToolCard(title = event.name, detail = event.arguments, state = ToolCardState.RUNNING))
+                }
+            }
             is ProviderEvent.Error -> {
                 currentCall = null
+                pendingToolCalls.clear()
                 _uiState.update { state ->
                     state.copy(
                         isStreaming = false,
@@ -105,13 +119,73 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             }
             ProviderEvent.Done -> {
                 currentCall = null
+                val calls = pendingToolCalls.toList()
+                pendingToolCalls.clear()
                 _uiState.update { state ->
                     state.copy(
-                        isStreaming = false,
-                        messages = state.messages.map { if (it.isStreaming) it.copy(isStreaming = false) else it },
+                        isStreaming = calls.isEmpty(),
+                        messages = state.messages.map { if (it.isStreaming) it.copy(isStreaming = calls.isNotEmpty()) else it },
                     )
                 }
+                if (calls.isNotEmpty()) executeToolCalls(calls)
             }
+        }
+    }
+
+    private fun executeToolCalls(calls: List<ProviderEvent.ToolCall>) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val toolInfos = calls.map { com.codeside.app.data.model.ToolCallInfo(it.id, it.name, it.arguments) }
+            launch(Dispatchers.Main) {
+                _uiState.update { state ->
+                    val idx = state.messages.indexOfLast { it.role == ChatRole.ASSISTANT }
+                    if (idx < 0) return@update state
+                    val updated = state.messages.toMutableList()
+                    updated[idx] = updated[idx].copy(toolCalls = toolInfos)
+                    state.copy(messages = updated)
+                }
+            }
+            val toolMessages = mutableListOf<ChatMessage>()
+            for (call in calls) {
+                val result = runTool(call.name, call.arguments)
+                val status = if (result.ok) ToolCardState.DONE else ToolCardState.ERROR
+                launch(Dispatchers.Main) {
+                    _uiState.update { state ->
+                        val idx = state.messages.indexOfLast { it.role == ChatRole.ASSISTANT && it.toolCalls.isNotEmpty() }
+                        if (idx < 0) return@update state
+                        val updated = state.messages.toMutableList()
+                        val msg = updated[idx]
+                        updated[idx] = msg.copy(toolCards = msg.toolCards.map { c ->
+                            if (c.title == call.name && c.state == ToolCardState.RUNNING) c.copy(state = status, detail = result.output.take(4000)) else c
+                        })
+                        state.copy(messages = updated)
+                    }
+                }
+                toolMessages += ChatMessage(
+                    role = ChatRole.TOOL,
+                    content = result.output,
+                    toolCallId = call.id,
+                    toolName = call.name,
+                    toolArgs = call.arguments,
+                )
+            }
+            launch(Dispatchers.Main) {
+                _uiState.update { it.copy(messages = it.messages + toolMessages) }
+                startAssistantResponse()
+            }
+        }
+    }
+
+    private fun runTool(name: String, argsJson: String): com.codeside.app.agent.ToolResult {
+        val args = runCatching { json.parseToJsonElement(argsJson).jsonObject }.getOrNull()
+        fun s(key: String) = args?.get(key)?.jsonPrimitive?.contentOrNull ?: ""
+        return when (name) {
+            "run_command" -> agentTools.runCommand(s("command"))
+            "read_file" -> agentTools.readFile(s("path"))
+            "write_file" -> agentTools.writeFile(s("path"), s("content"))
+            "edit_file" -> agentTools.editFile(s("path"), s("oldString"), s("newString"))
+            "list_dir" -> agentTools.listDir(s("path").ifBlank { "." })
+            "search" -> agentTools.search(s("query"), s("path").ifBlank { "." })
+            else -> com.codeside.app.agent.ToolResult(false, "Unknown tool: $name")
         }
     }
 
