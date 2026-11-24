@@ -44,12 +44,12 @@ fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
     if (showInstall) {
         AlertDialog(
             onDismissRequest = { showInstall = false },
-            title = { Text("Install package") },
+            title = { Text("Install") },
             text = {
                 OutlinedTextField(
                     value = bootstrapUrl,
                     onValueChange = { bootstrapUrl = it },
-                    placeholder = { Text("https://.../package.deb or bootstrap.zip") },
+                    placeholder = { Text("URL or Termux package name") },
                     singleLine = true,
                 )
             },
@@ -63,6 +63,10 @@ fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
                         vm.installDeb(bootstrapUrl)
                         showInstall = false
                     }) { Text("DEB") }
+                    TextButton(onClick = {
+                        vm.installTermuxPackage(bootstrapUrl)
+                        showInstall = false
+                    }) { Text("Repo") }
                 }
             },
             dismissButton = {
