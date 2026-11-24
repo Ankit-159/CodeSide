@@ -52,11 +52,53 @@ fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
 
 @Composable
 private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
     var showInstall by remember { mutableStateOf(false) }
     var bootstrapUrl by remember { mutableStateOf("") }
     var session by remember { mutableStateOf<TerminalSession?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var terminalView by remember { mutableStateOf<TerminalView?>(null) }
     val context = LocalContext.current
+
+    fun startSession(view: TerminalView) {
+        try {
+            session?.finishIfRunning()
+            val app = context.applicationContext as CodeSideApplication
+            val env = com.codeside.app.terminal.TerminalEnvironment(app)
+            env.ensureDirectories()
+            val client = object : TerminalSessionClient {
+                override fun onTextChanged(changedSession: TerminalSession) { view.onScreenUpdated() }
+                override fun onTitleChanged(changedSession: TerminalSession) {}
+                override fun onSessionFinished(finishedSession: TerminalSession) {}
+                override fun onCopyTextToClipboard(session: TerminalSession, text: String?) {}
+                override fun onPasteTextFromClipboard(session: TerminalSession) {}
+                override fun onBell(session: TerminalSession) {}
+                override fun onColorsChanged(session: TerminalSession) {}
+                override fun onTerminalCursorStateChange(state: Boolean) {}
+                override fun getTerminalCursorStyle(): Int? = null
+                override fun logError(tag: String?, message: String?) {}
+                override fun logWarn(tag: String?, message: String?) {}
+                override fun logInfo(tag: String?, message: String?) {}
+                override fun logDebug(tag: String?, message: String?) {}
+                override fun logVerbose(tag: String?, message: String?) {}
+                override fun logStackTraceWithMessage(tag: String?, message: String?, e: Exception?) {}
+                override fun logStackTrace(tag: String?, e: Exception?) {}
+            }
+            val s = TerminalSession(
+                env.shellPath(),
+                env.homeDir.absolutePath,
+                arrayOf<String>(),
+                env.buildEnv(),
+                2000,
+                client,
+            )
+            view.attachSession(s)
+            session = s
+            error = null
+            view.requestFocus()
+        } catch (t: Throwable) {
+            error = t.message ?: "Failed to start terminal"
+        }
+    }
 
     if (showInstall) {
         AlertDialog(
@@ -86,10 +128,17 @@ private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
             Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
             TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
-            TextButton(onClick = {
-                session?.finishIfRunning()
-                session = null
-            }) { Text("Stop") }
+            TextButton(onClick = { terminalView?.let { startSession(it) } }) { Text(if (session == null) "Start" else "Restart") }
+            TextButton(onClick = { session?.finishIfRunning(); session = null }) { Text("Stop") }
+        }
+
+        if (error != null) {
+            Text(
+                "Terminal error: $error",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            )
         }
 
         AndroidView(
@@ -98,7 +147,11 @@ private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
                 TerminalView(ctx, null).apply {
                     setTerminalViewClient(object : TerminalViewClient {
                         override fun onScale(scale: Float): Float = scale
-                        override fun onSingleTapUp(e: MotionEvent) { requestFocus(); (ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)?.showSoftInput(this@apply, 0) }
+                        override fun onSingleTapUp(e: MotionEvent) {
+                            requestFocus()
+                            (ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+                                ?.showSoftInput(this@apply, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                        }
                         override fun shouldBackButtonBeMappedToEscape() = false
                         override fun shouldEnforceCharBasedInput() = false
                         override fun shouldUseCtrlSpaceWorkaround() = false
@@ -123,44 +176,10 @@ private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
                     })
                     isFocusable = true
                     isFocusableInTouchMode = true
-                    requestFocus()
+                    terminalView = this
                 }
             },
-            update = { view ->
-                if (session == null) {
-                    val app = context.applicationContext as CodeSideApplication
-                    val env = com.codeside.app.terminal.TerminalEnvironment(app)
-                    env.ensureDirectories()
-                    val client = object : TerminalSessionClient {
-                        override fun onTextChanged(changedSession: TerminalSession) { view.onScreenUpdated() }
-                        override fun onTitleChanged(changedSession: TerminalSession) {}
-                        override fun onSessionFinished(finishedSession: TerminalSession) {}
-                        override fun onCopyTextToClipboard(session: TerminalSession, text: String?) {}
-                        override fun onPasteTextFromClipboard(session: TerminalSession) {}
-                        override fun onBell(session: TerminalSession) {}
-                        override fun onColorsChanged(session: TerminalSession) {}
-                        override fun onTerminalCursorStateChange(state: Boolean) {}
-                        override fun getTerminalCursorStyle(): Int? = null
-                        override fun logError(tag: String?, message: String?) {}
-                        override fun logWarn(tag: String?, message: String?) {}
-                        override fun logInfo(tag: String?, message: String?) {}
-                        override fun logDebug(tag: String?, message: String?) {}
-                        override fun logVerbose(tag: String?, message: String?) {}
-                        override fun logStackTraceWithMessage(tag: String?, message: String?, e: Exception?) {}
-                        override fun logStackTrace(tag: String?, e: Exception?) {}
-                    }
-                    val s = TerminalSession(
-                        env.shellPath(),
-                        env.homeDir.absolutePath,
-                        arrayOf(),
-                        env.buildEnv(),
-                        2000,
-                        client,
-                    )
-                    view.attachSession(s)
-                    session = s
-                }
-            },
+            update = { view -> terminalView = view },
         )
     }
 
