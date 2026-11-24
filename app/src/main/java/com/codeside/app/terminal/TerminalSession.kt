@@ -53,6 +53,11 @@ class TerminalSession(
         }
     }
 
+    fun resize(rows: Int, cols: Int) {
+        if (!running.get()) return
+        try { PtyBridge.nativeResize(fd, rows, cols) } catch (_: Throwable) {}
+    }
+
     override fun close() {
         running.set(false)
         try { PtyBridge.nativeKill(pid) } catch (_: Throwable) {}

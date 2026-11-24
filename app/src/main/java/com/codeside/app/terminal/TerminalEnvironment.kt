@@ -38,19 +38,25 @@ class TerminalEnvironment(private val context: Context) {
         pathParts += "/system/bin"
         pathParts += "/system/xbin"
         val nativeLibDir = context.applicationInfo.nativeLibraryDir
-        return arrayOf(
+        val ldPreload = File(nativeLibDir, "libcodeside-exec.so")
+        val env = mutableListOf(
             "HOME=${homeDir.absolutePath}",
             "PREFIX=${prefixDir.absolutePath}",
             "TMPDIR=${tmpDir.absolutePath}",
             "PATH=${pathParts.joinToString(":")}",
             "LANG=en_US.UTF-8",
             "TERM=xterm-256color",
+            "COLORTERM=truecolor",
             "ANDROID_ROOT=/system",
             "ANDROID_DATA=/data",
             "CODESIDE_NATIVE_LIB_DIR=$nativeLibDir",
             "CODESIDE_APP_ID=${context.packageName}",
             "CODESIDE_ANDROID_SDK=${Build.VERSION.SDK_INT}",
         )
+        if (ldPreload.exists()) {
+            env += "LD_PRELOAD=${ldPreload.absolutePath}"
+        }
+        return env.toTypedArray()
     }
 
     fun bootstrapStatus(): String {

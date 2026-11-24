@@ -16,4 +16,5 @@ object PtyBridge {
     external fun nativeClose(fd: Int)
     external fun nativeWait(pid: Int): Int
     external fun nativeKill(pid: Int)
+    external fun nativeResize(fd: Int, rows: Int, cols: Int)
 }

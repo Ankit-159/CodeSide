@@ -207,3 +207,15 @@ Java_com_codeside_app_terminal_PtyBridge_nativeKill(JNIEnv *env, jclass clazz, j
     (void)clazz;
     if (pid > 0) kill((pid_t)pid, SIGKILL);
 }
+
+JNIEXPORT void JNICALL
+Java_com_codeside_app_terminal_PtyBridge_nativeResize(JNIEnv *env, jclass clazz, jint fd, jint rows, jint cols) {
+    (void)env;
+    (void)clazz;
+    struct winsize ws;
+    ws.ws_row = (unsigned short)rows;
+    ws.ws_col = (unsigned short)cols;
+    ws.ws_xpixel = 0;
+    ws.ws_ypixel = 0;
+    ioctl((int)fd, TIOCSWINSZ, &ws);
+}

@@ -3,14 +3,14 @@ package com.codeside.app.ui.terminal
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.codeside.app.terminal.BootstrapManager
-import com.codeside.app.terminal.TerminalEnvironment
-import com.codeside.app.terminal.TerminalSession
+import com.codeside.app.CodeSideApplication
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 
 data class TerminalUiState(
     val lines: List<String> = emptyList(),
@@ -19,121 +19,26 @@ data class TerminalUiState(
 )
 
 class TerminalViewModel(app: Application) : AndroidViewModel(app) {
-    private val envManager = TerminalEnvironment(app.applicationContext)
-    private val bootstrapManager = BootstrapManager(app.applicationContext)
-    private val _uiState = MutableStateFlow(
-        TerminalUiState(lines = listOf("CodeSide terminal (M2). ${envManager.bootstrapStatus()}. Press Start."))
-    )
-    val uiState: StateFlow<TerminalUiState> = _uiState.asStateFlow()
+    private val terminal = (app as CodeSideApplication).terminalManager
+    private val input = MutableStateFlow("")
 
-    private var session: TerminalSession? = null
-    private val completed = mutableListOf<String>()
-    private val tail = StringBuilder()
+    val uiState: StateFlow<TerminalUiState> = combine(terminal.state, input) { term, inp ->
+        TerminalUiState(lines = term.lines, input = inp, running = term.running)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TerminalUiState(lines = terminal.state.value.lines, running = terminal.state.value.running))
 
-    fun bootstrap() {
-        viewModelScope.launch {
-            appendSystem("[bootstrap] installing basic prefix...")
-            val result = bootstrapManager.ensureBasicBootstrap()
-            result.onSuccess { appendSystem("[bootstrap] $it") }
-                .onFailure { appendSystem("[bootstrap] failed: ${it.message}") }
-        }
-    }
+    fun onInputChange(value: String) { input.value = value }
 
-    fun installBootstrap(url: String) {
-        val trimmed = url.trim()
-        if (trimmed.isBlank()) return
-        viewModelScope.launch {
-            appendSystem("[bootstrap] downloading $trimmed")
-            val result = bootstrapManager.installBootstrapZip(trimmed)
-            result.onSuccess { appendSystem("[bootstrap] $it") }
-                .onFailure { appendSystem("[bootstrap] failed: ${it.message}") }
-        }
-    }
-
-    private fun appendSystem(line: String) {
-        completed.add(line)
-        publishLines()
-    }
-
-    fun onInputChange(value: String) {
-        _uiState.update { it.copy(input = value) }
-    }
-
-    fun start() {
-        if (_uiState.value.running) return
-        envManager.ensureDirectories()
-        completed.clear()
-        tail.clear()
-        _uiState.update { it.copy(lines = emptyList(), running = true) }
-        val s = TerminalSession(
-            onOutput = { text -> viewModelScope.launch { appendOutput(text) } },
-            onExit = { code -> viewModelScope.launch { onExit(code) } },
-        )
-        session = s
-        try {
-            s.start(
-                cmd = envManager.shellPath(),
-                cwd = envManager.homeDir.absolutePath,
-                env = envManager.buildEnv(),
-            )
-        } catch (t: Throwable) {
-            _uiState.update { it.copy(running = false, lines = listOf("[failed to start: ${t.message}]")) }
-        }
-    }
+    fun start() = terminal.start()
 
     fun sendInput() {
-        val text = _uiState.value.input
-        if (text.isBlank() || !_uiState.value.running) return
-        session?.write(text + "\n")
-        _uiState.update { it.copy(input = "") }
+        val text = input.value
+        if (text.isBlank()) return
+        terminal.sendLine(text)
+        input.value = ""
     }
 
-    fun stop() {
-        session?.close()
-        session = null
-        _uiState.update { it.copy(running = false) }
-    }
-
-    fun clear() {
-        completed.clear()
-        tail.clear()
-        _uiState.update { it.copy(lines = emptyList()) }
-    }
-
-    private fun appendOutput(text: String) {
-        val clean = stripAnsi(text).replace("\r", "")
-        tail.append(clean)
-        val parts = tail.toString().split('\n')
-        completed.addAll(parts.dropLast(1))
-        tail.clear()
-        tail.append(parts.last())
-        publishLines()
-    }
-
-    private fun onExit(code: Int) {
-        session = null
-        if (tail.isNotEmpty()) {
-            completed.add(tail.toString())
-            tail.clear()
-        }
-        completed.add("[process exited: $code]")
-        _uiState.update { it.copy(running = false, lines = completed.takeLast(500)) }
-    }
-
-    private fun publishLines() {
-        val snapshot = buildList {
-            addAll(completed.takeLast(500))
-            if (tail.isNotEmpty()) add(tail.toString())
-        }
-        _uiState.update { it.copy(lines = snapshot) }
-    }
-
-    private fun stripAnsi(text: String): String {
-        return text.replace(Regex("\u001B\\[[;?0-9]*[ -/]*[@-~]"), "")
-    }
-
-    override fun onCleared() {
-        session?.close()
-        super.onCleared()
-    }
+    fun stop() = terminal.stop()
+    fun clear() = terminal.clear()
+    fun bootstrap() = terminal.bootstrap()
+    fun installBootstrap(url: String) = terminal.installBootstrap(url)
 }
