@@ -17,6 +17,7 @@ import kotlinx.serialization.json.Json
 data class SettingsState(
     val profiles: List<ProviderProfile> = emptyList(),
     val activeProfileId: String? = null,
+    val bootstrapUrl: String = "",
 )
 
 class SettingsStore(context: Context) {
