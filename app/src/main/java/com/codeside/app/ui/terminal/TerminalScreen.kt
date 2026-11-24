@@ -1,6 +1,10 @@
 package com.codeside.app.ui.terminal
 
+import android.os.Build
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,23 +21,158 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.codeside.app.CodeSideApplication
+import com.termux.terminal.TerminalSession
+import com.termux.terminal.TerminalSessionClient
+import com.termux.view.TerminalView
+import com.termux.view.TerminalViewClient
 
 @Composable
 fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
+    if (Build.VERSION.SDK_INT >= 24) {
+        TermuxTerminal(vm)
+    } else {
+        LegacyTerminal(vm)
+    }
+}
+
+@Composable
+private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
+    val state by vm.uiState.collectAsStateWithLifecycle()
+    var showInstall by remember { mutableStateOf(false) }
+    var bootstrapUrl by remember { mutableStateOf("") }
+    var session by remember { mutableStateOf<TerminalSession?>(null) }
+    val context = LocalContext.current
+
+    if (showInstall) {
+        AlertDialog(
+            onDismissRequest = { showInstall = false },
+            title = { Text("Install") },
+            text = {
+                OutlinedTextField(
+                    value = bootstrapUrl,
+                    onValueChange = { bootstrapUrl = it },
+                    placeholder = { Text("URL or Termux package name") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                Row {
+                    TextButton(onClick = { vm.installBootstrap(bootstrapUrl); showInstall = false }) { Text("ZIP") }
+                    TextButton(onClick = { vm.installDeb(bootstrapUrl); showInstall = false }) { Text("DEB") }
+                    TextButton(onClick = { vm.installTermuxPackage(bootstrapUrl); showInstall = false }) { Text("Repo") }
+                }
+            },
+            dismissButton = { TextButton(onClick = { showInstall = false }) { Text("Cancel") } },
+        )
+    }
+
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
+            TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
+            TextButton(onClick = {
+                session?.finishIfRunning()
+                session = null
+            }) { Text("Stop") }
+        }
+
+        AndroidView(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            factory = { ctx ->
+                TerminalView(ctx, null).apply {
+                    setTerminalViewClient(object : TerminalViewClient {
+                        override fun onScale(scale: Float): Float = scale
+                        override fun onSingleTapUp(e: MotionEvent) { requestFocus(); (ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)?.showSoftInput(this@apply, 0) }
+                        override fun shouldBackButtonBeMappedToEscape() = false
+                        override fun shouldEnforceCharBasedInput() = false
+                        override fun shouldUseCtrlSpaceWorkaround() = false
+                        override fun isTerminalViewSelected() = true
+                        override fun copyModeChanged(copyMode: Boolean) {}
+                        override fun onKeyDown(keyCode: Int, e: KeyEvent, session: TerminalSession?) = false
+                        override fun onKeyUp(keyCode: Int, e: KeyEvent) = false
+                        override fun onLongPress(event: MotionEvent) = false
+                        override fun readControlKey() = false
+                        override fun readAltKey() = false
+                        override fun readShiftKey() = false
+                        override fun readFnKey() = false
+                        override fun onCodePoint(codePoint: Int, ctrlDown: Boolean, session: TerminalSession?) = false
+                        override fun onEmulatorSet() {}
+                        override fun logError(tag: String?, message: String?) {}
+                        override fun logWarn(tag: String?, message: String?) {}
+                        override fun logInfo(tag: String?, message: String?) {}
+                        override fun logDebug(tag: String?, message: String?) {}
+                        override fun logVerbose(tag: String?, message: String?) {}
+                        override fun logStackTraceWithMessage(tag: String?, message: String?, e: Exception?) {}
+                        override fun logStackTrace(tag: String?, e: Exception?) {}
+                    })
+                    isFocusable = true
+                    isFocusableInTouchMode = true
+                    requestFocus()
+                }
+            },
+            update = { view ->
+                if (session == null) {
+                    val app = context.applicationContext as CodeSideApplication
+                    val env = com.codeside.app.terminal.TerminalEnvironment(app)
+                    env.ensureDirectories()
+                    val client = object : TerminalSessionClient {
+                        override fun onTextChanged(changedSession: TerminalSession) { view.onScreenUpdated() }
+                        override fun onTitleChanged(changedSession: TerminalSession) {}
+                        override fun onSessionFinished(finishedSession: TerminalSession) {}
+                        override fun onCopyTextToClipboard(session: TerminalSession, text: String?) {}
+                        override fun onPasteTextFromClipboard(session: TerminalSession) {}
+                        override fun onBell(session: TerminalSession) {}
+                        override fun onColorsChanged(session: TerminalSession) {}
+                        override fun onTerminalCursorStateChange(state: Boolean) {}
+                        override fun getTerminalCursorStyle(): Int? = null
+                        override fun logError(tag: String?, message: String?) {}
+                        override fun logWarn(tag: String?, message: String?) {}
+                        override fun logInfo(tag: String?, message: String?) {}
+                        override fun logDebug(tag: String?, message: String?) {}
+                        override fun logVerbose(tag: String?, message: String?) {}
+                        override fun logStackTraceWithMessage(tag: String?, message: String?, e: Exception?) {}
+                        override fun logStackTrace(tag: String?, e: Exception?) {}
+                    }
+                    val s = TerminalSession(
+                        env.shellPath(),
+                        env.homeDir.absolutePath,
+                        arrayOf(),
+                        env.buildEnv(),
+                        2000,
+                        client,
+                    )
+                    view.attachSession(s)
+                    session = s
+                }
+            },
+        )
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { session?.finishIfRunning() }
+    }
+}
+
+@Composable
+private fun LegacyTerminal(vm: TerminalViewModel = viewModel()) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-
     var showInstall by remember { mutableStateOf(false) }
     var bootstrapUrl by remember { mutableStateOf("") }
 
@@ -55,38 +194,22 @@ fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
             },
             confirmButton = {
                 Row {
-                    TextButton(onClick = {
-                        vm.installBootstrap(bootstrapUrl)
-                        showInstall = false
-                    }) { Text("ZIP") }
-                    TextButton(onClick = {
-                        vm.installDeb(bootstrapUrl)
-                        showInstall = false
-                    }) { Text("DEB") }
-                    TextButton(onClick = {
-                        vm.installTermuxPackage(bootstrapUrl)
-                        showInstall = false
-                    }) { Text("Repo") }
+                    TextButton(onClick = { vm.installBootstrap(bootstrapUrl); showInstall = false }) { Text("ZIP") }
+                    TextButton(onClick = { vm.installDeb(bootstrapUrl); showInstall = false }) { Text("DEB") }
+                    TextButton(onClick = { vm.installTermuxPackage(bootstrapUrl); showInstall = false }) { Text("Repo") }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showInstall = false }) { Text("Cancel") }
-            },
+            dismissButton = { TextButton(onClick = { showInstall = false }) { Text("Cancel") } },
         )
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = {
-                if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl()
-                showInstall = true
-            }) { Text("Install") }
+            TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
             TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
             TextButton(onClick = { vm.clear() }) { Text("Clear") }
-            TextButton(onClick = { if (state.running) vm.stop() else vm.start() }) {
-                Text(if (state.running) "Stop" else "Start")
-            }
+            TextButton(onClick = { if (state.running) vm.stop() else vm.start() }) { Text(if (state.running) "Stop" else "Start") }
         }
         LazyColumn(
             state = listState,
