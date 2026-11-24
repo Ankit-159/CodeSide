@@ -45,11 +45,41 @@ class GeminiClient(
                     put("parts", buildJsonArray { add(buildJsonObject { put("text", it) }) })
                 })
             }
+            put("tools", buildJsonArray { add(buildJsonObject { put("functionDeclarations", defaultTools()) }) })
             put("contents", buildJsonArray {
-                messages.filter { it.role == ChatRole.USER || it.role == ChatRole.ASSISTANT }.forEach { msg ->
+                messages.filter { it.role != ChatRole.SYSTEM }.forEach { msg ->
                     add(buildJsonObject {
-                        put("role", if (msg.role == ChatRole.USER) "user" else "model")
-                        put("parts", buildJsonArray { add(buildJsonObject { put("text", msg.content) }) })
+                        when (msg.role) {
+                            ChatRole.TOOL -> {
+                                put("role", "user")
+                                put("parts", buildJsonArray {
+                                    add(buildJsonObject {
+                                        put("functionResponse", buildJsonObject {
+                                            put("name", msg.toolName ?: "tool")
+                                            put("response", buildJsonObject { put("output", msg.content) })
+                                        })
+                                    })
+                                })
+                            }
+                            ChatRole.ASSISTANT -> {
+                                put("role", "model")
+                                put("parts", buildJsonArray {
+                                    if (msg.content.isNotBlank()) add(buildJsonObject { put("text", msg.content) })
+                                    msg.toolCalls.forEach { tc ->
+                                        add(buildJsonObject {
+                                            put("functionCall", buildJsonObject {
+                                                put("name", tc.name)
+                                                put("args", runCatching { json.parseToJsonElement(tc.arguments) }.getOrElse { buildJsonObject {} })
+                                            })
+                                        })
+                                    }
+                                })
+                            }
+                            else -> {
+                                put("role", "user")
+                                put("parts", buildJsonArray { add(buildJsonObject { put("text", msg.content) }) })
+                            }
+                        }
                     })
                 }
             })
@@ -98,9 +128,47 @@ class GeminiClient(
         val candidates = root["candidates"] as? JsonArray ?: return
         val content = candidates.firstOrNull()?.jsonObject?.get("content")?.jsonObject ?: return
         val parts = content["parts"] as? JsonArray ?: return
-        parts.forEach { part ->
-            val text = part.jsonObject["text"]?.jsonPrimitive?.contentOrNull
-            if (!text.isNullOrEmpty()) onEvent(ProviderEvent.TextDelta(text))
+        parts.forEach { partEl ->
+            val part = partEl.jsonObject
+            part["text"]?.jsonPrimitive?.contentOrNull?.let { if (it.isNotEmpty()) onEvent(ProviderEvent.TextDelta(it)) }
+            val fc = part["functionCall"]?.jsonObject
+            if (fc != null) {
+                val name = fc["name"]?.jsonPrimitive?.contentOrNull ?: "tool"
+                val args = fc["args"]?.toString() ?: "{}"
+                onEvent(ProviderEvent.ToolCall(id = "call_${System.nanoTime()}", name = name, arguments = args))
+            }
         }
+    }
+
+    private fun defaultTools(): JsonArray = buildJsonArray {
+        fun tool(name: String, desc: String, props: JsonObject, required: List<String> = emptyList()) {
+            add(buildJsonObject {
+                put("name", name)
+                put("description", desc)
+                put("parameters", buildJsonObject {
+                    put("type", "object")
+                    put("properties", props)
+                    put("required", buildJsonArray { required.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } })
+                })
+            })
+        }
+        tool("run_command", "Run a shell command in the app terminal environment", buildJsonObject {
+            put("command", buildJsonObject { put("type", "string"); put("description", "Shell command to run") })
+        }, listOf("command"))
+        tool("read_file", "Read a file from the workspace", buildJsonObject { put("path", buildJsonObject { put("type", "string") }) }, listOf("path"))
+        tool("write_file", "Write content to a file in the workspace", buildJsonObject {
+            put("path", buildJsonObject { put("type", "string") })
+            put("content", buildJsonObject { put("type", "string") })
+        }, listOf("path", "content"))
+        tool("edit_file", "Replace exact text in a workspace file", buildJsonObject {
+            put("path", buildJsonObject { put("type", "string") })
+            put("oldString", buildJsonObject { put("type", "string") })
+            put("newString", buildJsonObject { put("type", "string") })
+        }, listOf("path", "oldString", "newString"))
+        tool("list_dir", "List files in a workspace directory", buildJsonObject { put("path", buildJsonObject { put("type", "string") }) })
+        tool("search", "Search text in workspace files", buildJsonObject {
+            put("query", buildJsonObject { put("type", "string") })
+            put("path", buildJsonObject { put("type", "string") })
+        }, listOf("query"))
     }
 }
