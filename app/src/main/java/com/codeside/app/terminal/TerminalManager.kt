@@ -134,6 +134,7 @@ class TerminalManager(context: Context) {
     }
 
     private fun stripAnsi(text: String): String {
-        return text.replace(Regex("\u001B\\[[;?0-9]*[ -/]*[@-~]"), "")
+        // Keep SGR color/style sequences, strip other terminal control sequences.
+        return text.replace(Regex("\u001B\\[[;?0-9]*[ -/]*[A-LN-Za-ln-z~]"), "")
     }
 }

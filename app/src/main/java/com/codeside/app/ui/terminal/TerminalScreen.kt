@@ -81,9 +81,8 @@ fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
         ) {
             items(state.lines) { line ->
                 Text(
-                    text = line,
+                    text = ansiToAnnotatedString(line, MaterialTheme.colorScheme.onBackground),
                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onBackground,
                 )
             }
         }
