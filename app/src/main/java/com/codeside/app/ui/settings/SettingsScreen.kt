@@ -48,7 +48,10 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
     }
     var bootstrapSaveStatus by remember { mutableStateOf<String?>(null) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { padding ->
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Settings") }) },
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+    ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

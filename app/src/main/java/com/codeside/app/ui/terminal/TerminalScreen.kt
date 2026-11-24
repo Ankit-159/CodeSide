@@ -4,6 +4,7 @@ import android.os.Build
 import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -126,12 +128,19 @@ private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
-            TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
-            TextButton(onClick = { terminalView?.let { startSession(it) } }) { Text(if (session == null) "Start" else "Restart") }
-            TextButton(onClick = { session?.finishIfRunning(); session = null }) { Text("Stop") }
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+            Text("Terminal", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
+                TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
+                TextButton(onClick = { terminalView?.let { startSession(it) } }) { Text(if (session == null) "Start" else "Restart") }
+                TextButton(onClick = { session?.finishIfRunning(); session = null }) { Text("Stop") }
+            }
         }
 
         if (error != null) {
@@ -249,12 +258,19 @@ private fun LegacyTerminal(vm: TerminalViewModel = viewModel()) {
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-            Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
-            TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
-            TextButton(onClick = { vm.clear() }) { Text("Clear") }
-            TextButton(onClick = { if (state.running) vm.stop() else vm.start() }) { Text(if (state.running) "Stop" else "Start") }
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+            Text("Terminal", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
+                TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
+                TextButton(onClick = { vm.clear() }) { Text("Clear") }
+                TextButton(onClick = { if (state.running) vm.stop() else vm.start() }) { Text(if (state.running) "Stop" else "Start") }
+            }
         }
         LazyColumn(
             state = listState,

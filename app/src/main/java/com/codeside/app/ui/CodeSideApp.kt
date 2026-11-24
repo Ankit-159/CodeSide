@@ -1,5 +1,6 @@
 package com.codeside.app.ui
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -66,7 +67,9 @@ fun CodeSideApp() {
         NavHost(
             navController = navController,
             startDestination = Dest.Chat.route,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier
+                .padding(innerPadding)
+                .imePadding(),
         ) {
             composable(Dest.Chat.route) { ChatScreen() }
             composable(Dest.Terminal.route) { TerminalScreen() }

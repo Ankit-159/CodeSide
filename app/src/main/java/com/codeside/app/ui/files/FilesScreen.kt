@@ -71,7 +71,10 @@ fun FilesScreen(vm: FilesViewModel = viewModel()) {
         )
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Files") }) }) { padding ->
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Files") }) },
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+    ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) { Text("Import") }
