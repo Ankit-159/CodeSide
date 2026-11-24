@@ -55,5 +55,21 @@ class FilesViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun exportFile(path: String, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val src = workspace.resolve(path)
+                val resolver = getApplication<Application>().contentResolver
+                resolver.openOutputStream(uri).use { out ->
+                    requireNotNull(out) { "Could not open destination" }
+                    src.inputStream().use { input -> input.copyTo(out) }
+                }
+                _uiState.value = _uiState.value.copy(status = "Exported $path")
+            }.onFailure {
+                _uiState.value = _uiState.value.copy(status = "Export failed: ${it.message}")
+            }
+        }
+    }
+
     fun clearStatus() { _uiState.value = _uiState.value.copy(status = null) }
 }
