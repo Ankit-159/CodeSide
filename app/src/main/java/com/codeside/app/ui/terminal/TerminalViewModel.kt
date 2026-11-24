@@ -41,4 +41,5 @@ class TerminalViewModel(app: Application) : AndroidViewModel(app) {
     fun clear() = terminal.clear()
     fun bootstrap() = terminal.bootstrap()
     fun installBootstrap(url: String) = terminal.installBootstrap(url)
+    fun installDeb(url: String) = terminal.installDeb(url)
 }

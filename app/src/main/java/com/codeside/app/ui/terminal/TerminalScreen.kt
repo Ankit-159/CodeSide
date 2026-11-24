@@ -44,20 +44,26 @@ fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
     if (showInstall) {
         AlertDialog(
             onDismissRequest = { showInstall = false },
-            title = { Text("Install bootstrap ZIP") },
+            title = { Text("Install package") },
             text = {
                 OutlinedTextField(
                     value = bootstrapUrl,
                     onValueChange = { bootstrapUrl = it },
-                    placeholder = { Text("https://.../bootstrap.zip") },
+                    placeholder = { Text("https://.../package.deb or bootstrap.zip") },
                     singleLine = true,
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    vm.installBootstrap(bootstrapUrl)
-                    showInstall = false
-                }) { Text("Install") }
+                Row {
+                    TextButton(onClick = {
+                        vm.installBootstrap(bootstrapUrl)
+                        showInstall = false
+                    }) { Text("ZIP") }
+                    TextButton(onClick = {
+                        vm.installDeb(bootstrapUrl)
+                        showInstall = false
+                    }) { Text("DEB") }
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showInstall = false }) { Text("Cancel") }

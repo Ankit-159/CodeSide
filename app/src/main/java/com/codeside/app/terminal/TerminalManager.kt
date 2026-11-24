@@ -19,6 +19,7 @@ class TerminalManager(context: Context) {
     private val appContext = context.applicationContext
     private val envManager = TerminalEnvironment(appContext)
     private val bootstrapManager = BootstrapManager(appContext)
+    private val debInstaller = DebInstaller(envManager)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val completed = mutableListOf<String>()
@@ -93,6 +94,17 @@ class TerminalManager(context: Context) {
             val result = bootstrapManager.installBootstrapZip(trimmed)
             result.onSuccess { appendSystem("[bootstrap] $it") }
                 .onFailure { appendSystem("[bootstrap] failed: ${it.message}") }
+        }
+    }
+
+    fun installDeb(url: String) {
+        val trimmed = url.trim()
+        if (trimmed.isBlank()) return
+        scope.launch {
+            appendSystem("[pkg] installing $trimmed")
+            val result = debInstaller.installFromUrl(trimmed)
+            result.onSuccess { appendSystem("[pkg] $it") }
+                .onFailure { appendSystem("[pkg] failed: ${it.message}") }
         }
     }
 
