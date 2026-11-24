@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -30,13 +31,42 @@ fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
+    var showInstall by remember { mutableStateOf(false) }
+    var bootstrapUrl by remember { mutableStateOf("") }
+
     LaunchedEffect(state.lines.size) {
         if (state.lines.isNotEmpty()) listState.animateScrollToItem(state.lines.lastIndex)
+    }
+
+    if (showInstall) {
+        AlertDialog(
+            onDismissRequest = { showInstall = false },
+            title = { Text("Install bootstrap ZIP") },
+            text = {
+                OutlinedTextField(
+                    value = bootstrapUrl,
+                    onValueChange = { bootstrapUrl = it },
+                    placeholder = { Text("https://.../bootstrap.zip") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.installBootstrap(bootstrapUrl)
+                    showInstall = false
+                }) { Text("Install") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showInstall = false }) { Text("Cancel") }
+            },
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            TextButton(onClick = { showInstall = true }) { Text("Zip") }
+            TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
             TextButton(onClick = { vm.clear() }) { Text("Clear") }
             TextButton(onClick = { if (state.running) vm.stop() else vm.start() }) {
                 Text(if (state.running) "Stop" else "Start")

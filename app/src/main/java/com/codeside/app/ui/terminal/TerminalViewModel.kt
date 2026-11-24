@@ -3,27 +3,57 @@ package com.codeside.app.ui.terminal
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.codeside.app.terminal.BootstrapManager
+import com.codeside.app.terminal.TerminalEnvironment
 import com.codeside.app.terminal.TerminalSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.File
 
 data class TerminalUiState(
-    val lines: List<String> = listOf("CodeSide terminal (M2 MVP). Press Start to launch /system/bin/sh."),
+    val lines: List<String> = emptyList(),
     val input: String = "",
     val running: Boolean = false,
 )
 
 class TerminalViewModel(app: Application) : AndroidViewModel(app) {
-    private val _uiState = MutableStateFlow(TerminalUiState())
+    private val envManager = TerminalEnvironment(app.applicationContext)
+    private val bootstrapManager = BootstrapManager(app.applicationContext)
+    private val _uiState = MutableStateFlow(
+        TerminalUiState(lines = listOf("CodeSide terminal (M2). ${envManager.bootstrapStatus()}. Press Start."))
+    )
     val uiState: StateFlow<TerminalUiState> = _uiState.asStateFlow()
 
     private var session: TerminalSession? = null
     private val completed = mutableListOf<String>()
     private val tail = StringBuilder()
+
+    fun bootstrap() {
+        viewModelScope.launch {
+            appendSystem("[bootstrap] installing basic prefix...")
+            val result = bootstrapManager.ensureBasicBootstrap()
+            result.onSuccess { appendSystem("[bootstrap] $it") }
+                .onFailure { appendSystem("[bootstrap] failed: ${it.message}") }
+        }
+    }
+
+    fun installBootstrap(url: String) {
+        val trimmed = url.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            appendSystem("[bootstrap] downloading $trimmed")
+            val result = bootstrapManager.installBootstrapZip(trimmed)
+            result.onSuccess { appendSystem("[bootstrap] $it") }
+                .onFailure { appendSystem("[bootstrap] failed: ${it.message}") }
+        }
+    }
+
+    private fun appendSystem(line: String) {
+        completed.add(line)
+        publishLines()
+    }
 
     fun onInputChange(value: String) {
         _uiState.update { it.copy(input = value) }
@@ -31,7 +61,7 @@ class TerminalViewModel(app: Application) : AndroidViewModel(app) {
 
     fun start() {
         if (_uiState.value.running) return
-        val home = File(getApplication<Application>().filesDir, "home").apply { mkdirs() }
+        envManager.ensureDirectories()
         completed.clear()
         tail.clear()
         _uiState.update { it.copy(lines = emptyList(), running = true) }
@@ -41,13 +71,11 @@ class TerminalViewModel(app: Application) : AndroidViewModel(app) {
         )
         session = s
         try {
-            val env = arrayOf(
-                "HOME=${home.absolutePath}",
-                "PATH=/system/bin:/system/xbin",
-                "TMPDIR=${getApplication<Application>().cacheDir.absolutePath}",
-                "TERM=xterm-256color",
+            s.start(
+                cmd = envManager.shellPath(),
+                cwd = envManager.homeDir.absolutePath,
+                env = envManager.buildEnv(),
             )
-            s.start(cmd = "/system/bin/sh", cwd = home.absolutePath, env = env)
         } catch (t: Throwable) {
             _uiState.update { it.copy(running = false, lines = listOf("[failed to start: ${t.message}]")) }
         }
