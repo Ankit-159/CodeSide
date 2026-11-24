@@ -9,6 +9,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -58,6 +59,7 @@ class DebInstaller(private val env: TerminalEnvironment) {
         val wrapped: InputStream = when {
             name.endsWith(".gz") -> GzipCompressorInputStream(BufferedInputStream(ar))
             name.endsWith(".xz") -> XZCompressorInputStream(BufferedInputStream(ar))
+            name.endsWith(".zst") -> ZstdCompressorInputStream(BufferedInputStream(ar))
             name == "data.tar" -> BufferedInputStream(ar)
             else -> throw IOException("Unsupported data archive: $name")
         }
