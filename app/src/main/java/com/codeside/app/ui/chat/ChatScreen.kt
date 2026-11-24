@@ -86,6 +86,22 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
                 item { Spacer(Modifier.height(8.dp)) }
             }
 
+            if (state.pendingApproval != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.08f)),
+                ) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Approval required: ${state.pendingApproval!!.call.name}", style = MaterialTheme.typography.labelLarge)
+                        Text(state.pendingApproval!!.call.arguments.take(500), style = MaterialTheme.typography.bodySmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { vm.approvePendingTool() }) { Text("Approve") }
+                            TextButton(onClick = { vm.denyPendingTool() }) { Text("Deny") }
+                        }
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

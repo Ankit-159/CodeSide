@@ -23,11 +23,16 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+data class PendingToolApproval(
+    val call: ProviderEvent.ToolCall,
+)
+
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val input: String = "",
     val isStreaming: Boolean = false,
     val error: String? = null,
+    val pendingApproval: PendingToolApproval? = null,
 )
 
 class ChatViewModel(app: Application) : AndroidViewModel(app) {
@@ -39,6 +44,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private var currentCall: Cancellable? = null
     private val pendingToolCalls = mutableListOf<ProviderEvent.ToolCall>()
+    private var pendingExecution: MutableList<ProviderEvent.ToolCall> = mutableListOf()
+    private val completedToolMessages = mutableListOf<ChatMessage>()
 
     fun onInputChange(value: String) {
         _uiState.update { it.copy(input = value) }
@@ -133,45 +140,88 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun executeToolCalls(calls: List<ProviderEvent.ToolCall>) {
+        val toolInfos = calls.map { com.codeside.app.data.model.ToolCallInfo(it.id, it.name, it.arguments) }
+        _uiState.update { state ->
+            val idx = state.messages.indexOfLast { it.role == ChatRole.ASSISTANT }
+            if (idx < 0) return@update state
+            val updated = state.messages.toMutableList()
+            updated[idx] = updated[idx].copy(toolCalls = toolInfos)
+            state.copy(messages = updated)
+        }
+        pendingExecution = calls.toMutableList()
+        completedToolMessages.clear()
+        processNextTool()
+    }
+
+    private fun needsApproval(name: String): Boolean {
+        return name == "run_command" || name == "write_file" || name == "edit_file"
+    }
+
+    private fun processNextTool() {
+        val next = pendingExecution.firstOrNull() ?: run {
+            val msgs = completedToolMessages.toList()
+            completedToolMessages.clear()
+            _uiState.update { it.copy(messages = it.messages + msgs, isStreaming = false) }
+            startAssistantResponse()
+            return
+        }
+        if (needsApproval(next.name)) {
+            _uiState.update { it.copy(pendingApproval = PendingToolApproval(next)) }
+            return
+        }
+        executeApprovedTool(next)
+    }
+
+    fun approvePendingTool() {
+        val pending = _uiState.value.pendingApproval ?: return
+        _uiState.update { it.copy(pendingApproval = null) }
+        executeApprovedTool(pending.call)
+    }
+
+    fun denyPendingTool() {
+        val pending = _uiState.value.pendingApproval ?: return
+        _uiState.update { it.copy(pendingApproval = null) }
+        pendingExecution.remove(pending.call)
+        completedToolMessages += ChatMessage(
+            role = ChatRole.TOOL,
+            content = "Denied by user.",
+            toolCallId = pending.call.id,
+            toolName = pending.call.name,
+            toolArgs = pending.call.arguments,
+        )
+        markToolCard(pending.call.name, ToolCardState.ERROR, "Denied by user.")
+        processNextTool()
+    }
+
+    private fun executeApprovedTool(call: ProviderEvent.ToolCall) {
+        pendingExecution.remove(call)
         viewModelScope.launch(Dispatchers.Default) {
-            val toolInfos = calls.map { com.codeside.app.data.model.ToolCallInfo(it.id, it.name, it.arguments) }
+            val result = runTool(call.name, call.arguments)
+            val status = if (result.ok) ToolCardState.DONE else ToolCardState.ERROR
+            completedToolMessages += ChatMessage(
+                role = ChatRole.TOOL,
+                content = result.output,
+                toolCallId = call.id,
+                toolName = call.name,
+                toolArgs = call.arguments,
+            )
             launch(Dispatchers.Main) {
-                _uiState.update { state ->
-                    val idx = state.messages.indexOfLast { it.role == ChatRole.ASSISTANT }
-                    if (idx < 0) return@update state
-                    val updated = state.messages.toMutableList()
-                    updated[idx] = updated[idx].copy(toolCalls = toolInfos)
-                    state.copy(messages = updated)
-                }
+                markToolCard(call.name, status, result.output.take(4000))
+                processNextTool()
             }
-            val toolMessages = mutableListOf<ChatMessage>()
-            for (call in calls) {
-                val result = runTool(call.name, call.arguments)
-                val status = if (result.ok) ToolCardState.DONE else ToolCardState.ERROR
-                launch(Dispatchers.Main) {
-                    _uiState.update { state ->
-                        val idx = state.messages.indexOfLast { it.role == ChatRole.ASSISTANT && it.toolCalls.isNotEmpty() }
-                        if (idx < 0) return@update state
-                        val updated = state.messages.toMutableList()
-                        val msg = updated[idx]
-                        updated[idx] = msg.copy(toolCards = msg.toolCards.map { c ->
-                            if (c.title == call.name && c.state == ToolCardState.RUNNING) c.copy(state = status, detail = result.output.take(4000)) else c
-                        })
-                        state.copy(messages = updated)
-                    }
-                }
-                toolMessages += ChatMessage(
-                    role = ChatRole.TOOL,
-                    content = result.output,
-                    toolCallId = call.id,
-                    toolName = call.name,
-                    toolArgs = call.arguments,
-                )
-            }
-            launch(Dispatchers.Main) {
-                _uiState.update { it.copy(messages = it.messages + toolMessages) }
-                startAssistantResponse()
-            }
+        }
+    }
+
+    private fun markToolCard(name: String, status: ToolCardState, detail: String) {
+        _uiState.update { state ->
+            val idx = state.messages.indexOfLast { it.role == ChatRole.ASSISTANT && it.toolCalls.isNotEmpty() }
+            if (idx < 0) return@update state
+            val updated = state.messages.toMutableList()
+            val msg = updated[idx]
+            updated[idx] = msg.copy(toolCards = msg.toolCards.map { c ->
+                if (c.title == name && c.state == ToolCardState.RUNNING) c.copy(state = status, detail = detail) else c
+            })
+            state.copy(messages = updated)
         }
     }
 
