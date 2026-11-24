@@ -42,3 +42,5 @@ gradle/               Gradle version catalog / wrapper properties
 ## License
 
 [GPL-3.0](LICENSE)
+
+@coderabbit review
