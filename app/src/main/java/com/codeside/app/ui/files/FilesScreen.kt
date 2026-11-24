@@ -53,10 +53,15 @@ fun FilesScreen(vm: FilesViewModel = viewModel()) {
         if (uri != null && path != null) vm.exportFile(path, uri)
     }
 
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) vm.grantFolder(uri)
+    }
+
     Scaffold(topBar = { TopAppBar(title = { Text("Files") }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) { Text("Import") }
+                OutlinedButton(onClick = { folderLauncher.launch(null) }) { Text("Grant folder") }
                 OutlinedButton(onClick = { vm.refresh() }) { Text("Refresh") }
             }
             if (state.status != null) {
@@ -67,6 +72,18 @@ fun FilesScreen(vm: FilesViewModel = viewModel()) {
                     }
                 }
             }
+            if (state.grantedFolders.isNotEmpty()) {
+                Text("Granted folders", style = MaterialTheme.typography.titleSmall)
+                state.grantedFolders.forEach { uri ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(uri, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = { vm.removeGrantedFolder(uri) }) { Text("Remove") }
+                        }
+                    }
+                }
+            }
+            Text("Workspace files", style = MaterialTheme.typography.titleSmall)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxSize()) {
                 items(state.files) { f ->
                     Card(Modifier.fillMaxWidth()) {
@@ -80,7 +97,7 @@ fun FilesScreen(vm: FilesViewModel = viewModel()) {
                     }
                 }
                 if (state.files.isEmpty()) {
-                    item { Text("No files in workspace yet. Use Import to add files via system picker.", style = MaterialTheme.typography.bodySmall) }
+                    item { Text("No files in workspace yet. Use Import or Grant folder.", style = MaterialTheme.typography.bodySmall) }
                 }
             }
         }

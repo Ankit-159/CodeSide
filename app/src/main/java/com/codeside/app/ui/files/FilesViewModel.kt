@@ -1,9 +1,11 @@
 package com.codeside.app.ui.files
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.codeside.app.CodeSideApplication
 import com.codeside.app.agent.Workspace
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,12 +16,14 @@ import java.io.File
 
 data class FilesUiState(
     val files: List<String> = emptyList(),
+    val grantedFolders: List<String> = emptyList(),
     val status: String? = null,
 )
 
 class FilesViewModel(app: Application) : AndroidViewModel(app) {
     private val workspace = Workspace(File(app.applicationContext.filesDir, "workspace"))
-    private val _uiState = MutableStateFlow(FilesUiState())
+    private val settingsStore = (app as CodeSideApplication).settingsStore
+    private val _uiState = MutableStateFlow(FilesUiState(grantedFolders = settingsStore.state.value.grantedFolders))
     val uiState: StateFlow<FilesUiState> = _uiState.asStateFlow()
 
     init { refresh() }
@@ -33,8 +37,26 @@ class FilesViewModel(app: Application) : AndroidViewModel(app) {
                 .map { workspace.relative(it) }
                 .sorted()
                 .toList()
-            _uiState.value = FilesUiState(files = files)
+            _uiState.value = _uiState.value.copy(files = files, grantedFolders = settingsStore.state.value.grantedFolders)
         }
+    }
+
+    fun grantFolder(uri: Uri) {
+        runCatching {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            getApplication<Application>().contentResolver.takePersistableUriPermission(uri, flags)
+        }
+        settingsStore.addGrantedFolder(uri.toString())
+        refresh()
+        _uiState.value = _uiState.value.copy(status = "Folder granted")
+    }
+
+    fun removeGrantedFolder(uri: String) {
+        runCatching {
+            getApplication<Application>().contentResolver.releasePersistableUriPermission(Uri.parse(uri), Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+        settingsStore.removeGrantedFolder(uri)
+        refresh()
     }
 
     fun importUri(uri: Uri, name: String?) {

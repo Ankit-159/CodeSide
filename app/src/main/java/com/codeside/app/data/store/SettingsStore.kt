@@ -19,6 +19,7 @@ data class SettingsState(
     val activeProfileId: String? = null,
     val bootstrapUrl: String = "",
     val allowedTools: List<String> = emptyList(),
+    val grantedFolders: List<String> = emptyList(),
 )
 
 class SettingsStore(context: Context) {
@@ -105,6 +106,17 @@ class SettingsStore(context: Context) {
     fun removeAllowedTool(name: String) {
         val current = _state.value
         persist(current.copy(allowedTools = current.allowedTools.filterNot { it == name }))
+    }
+
+    fun addGrantedFolder(uri: String) {
+        val current = _state.value
+        if (uri.isBlank() || current.grantedFolders.contains(uri)) return
+        persist(current.copy(grantedFolders = current.grantedFolders + uri))
+    }
+
+    fun removeGrantedFolder(uri: String) {
+        val current = _state.value
+        persist(current.copy(grantedFolders = current.grantedFolders.filterNot { it == uri }))
     }
 
     fun replaceAll(state: SettingsState) {
