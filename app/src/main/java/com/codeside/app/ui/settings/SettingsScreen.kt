@@ -41,6 +41,7 @@ import com.codeside.app.data.model.ProviderType
 fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<ProviderProfile?>(null) }
+    var bootstrapUrl by remember(state.bootstrapUrl) { mutableStateOf(state.bootstrapUrl) }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { padding ->
         LazyColumn(
@@ -61,6 +62,26 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(onClick = { vm.addPreset(ProviderType.GOOGLE) }) { Text("Google") }
                     OutlinedButton(onClick = { vm.addPreset(ProviderType.CUSTOM) }) { Text("Custom") }
+                }
+            }
+
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Terminal bootstrap", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Default download link for bootstrap ZIP (you can change it).",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedTextField(
+                            value = bootstrapUrl,
+                            onValueChange = { bootstrapUrl = it },
+                            label = { Text("Bootstrap ZIP URL") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                        )
+                        Button(onClick = { vm.setBootstrapUrl(bootstrapUrl) }) { Text("Save URL") }
+                    }
                 }
             }
 

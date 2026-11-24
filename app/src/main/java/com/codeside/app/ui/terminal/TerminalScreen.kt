@@ -78,7 +78,10 @@ fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = { showInstall = true }) { Text("Zip") }
+            TextButton(onClick = {
+                if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl()
+                showInstall = true
+            }) { Text("Install") }
             TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
             TextButton(onClick = { vm.clear() }) { Text("Clear") }
             TextButton(onClick = { if (state.running) vm.stop() else vm.start() }) {

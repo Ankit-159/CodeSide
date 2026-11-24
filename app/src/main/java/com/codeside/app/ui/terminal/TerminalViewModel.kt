@@ -20,6 +20,7 @@ data class TerminalUiState(
 
 class TerminalViewModel(app: Application) : AndroidViewModel(app) {
     private val terminal = (app as CodeSideApplication).terminalManager
+    private val settingsStore = (app as CodeSideApplication).settingsStore
     private val input = MutableStateFlow("")
 
     val uiState: StateFlow<TerminalUiState> = combine(terminal.state, input) { term, inp ->
@@ -43,4 +44,5 @@ class TerminalViewModel(app: Application) : AndroidViewModel(app) {
     fun installBootstrap(url: String) = terminal.installBootstrap(url)
     fun installDeb(url: String) = terminal.installDeb(url)
     fun installTermuxPackage(name: String) = terminal.installTermuxPackage(name)
+    fun currentBootstrapUrl(): String = settingsStore.state.value.bootstrapUrl
 }

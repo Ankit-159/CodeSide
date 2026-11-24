@@ -91,6 +91,10 @@ class SettingsStore(context: Context) {
         }
     }
 
+    fun setBootstrapUrl(url: String) {
+        persist(_state.value.copy(bootstrapUrl = url.trim()))
+    }
+
     fun replaceAll(state: SettingsState) {
         persist(state)
     }

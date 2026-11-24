@@ -27,4 +27,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setActive(id: String) {
         store.setActiveProfile(id)
     }
+
+    fun setBootstrapUrl(url: String) {
+        store.setBootstrapUrl(url)
+    }
 }
