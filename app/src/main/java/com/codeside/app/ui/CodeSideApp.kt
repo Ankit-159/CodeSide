@@ -62,6 +62,7 @@ fun CodeSideApp() {
     Box(Modifier.fillMaxSize()) {
         ModalNavigationDrawer(
             drawerState = drawerState,
+            gesturesEnabled = drawerState.isOpen,
             drawerContent = {
                 ModalDrawerSheet {
                     Text("CodeSide", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
