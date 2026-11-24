@@ -20,6 +20,7 @@ class TerminalManager(context: Context) {
     private val envManager = TerminalEnvironment(appContext)
     private val bootstrapManager = BootstrapManager(appContext)
     private val debInstaller = DebInstaller(envManager)
+    private val termuxRepo = TermuxRepo()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val completed = mutableListOf<String>()
@@ -105,6 +106,23 @@ class TerminalManager(context: Context) {
             val result = debInstaller.installFromUrl(trimmed)
             result.onSuccess { appendSystem("[pkg] $it") }
                 .onFailure { appendSystem("[pkg] failed: ${it.message}") }
+        }
+    }
+
+    fun installTermuxPackage(name: String) {
+        val pkg = name.trim()
+        if (pkg.isBlank()) return
+        scope.launch {
+            appendSystem("[pkg] resolving $pkg from Termux repo...")
+            val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
+            val urlResult = termuxRepo.findPackageUrl(pkg, abi)
+            urlResult.onFailure { appendSystem("[pkg] resolve failed: ${it.message}") }
+                .onSuccess { url ->
+                    appendSystem("[pkg] downloading $url")
+                    val result = debInstaller.installFromUrl(url)
+                    result.onSuccess { appendSystem("[pkg] $it") }
+                        .onFailure { appendSystem("[pkg] failed: ${it.message}") }
+                }
         }
     }
 

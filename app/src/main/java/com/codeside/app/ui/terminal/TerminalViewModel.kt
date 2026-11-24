@@ -42,4 +42,5 @@ class TerminalViewModel(app: Application) : AndroidViewModel(app) {
     fun bootstrap() = terminal.bootstrap()
     fun installBootstrap(url: String) = terminal.installBootstrap(url)
     fun installDeb(url: String) = terminal.installDeb(url)
+    fun installTermuxPackage(name: String) = terminal.installTermuxPackage(name)
 }
