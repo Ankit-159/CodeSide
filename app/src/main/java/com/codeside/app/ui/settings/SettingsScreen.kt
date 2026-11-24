@@ -35,13 +35,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeside.app.data.model.ProviderProfile
 import com.codeside.app.data.model.ProviderType
+import com.codeside.app.terminal.BootstrapManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<ProviderProfile?>(null) }
-    var bootstrapUrl by remember(state.bootstrapUrl) { mutableStateOf(state.bootstrapUrl) }
+    val defaultBootstrapUrl = remember { BootstrapManager.defaultBootstrapUrl() }
+    var bootstrapUrl by remember(state.bootstrapUrl, defaultBootstrapUrl) {
+        mutableStateOf(state.bootstrapUrl.ifBlank { defaultBootstrapUrl })
+    }
+    var bootstrapSaveStatus by remember { mutableStateOf<String?>(null) }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { padding ->
         LazyColumn(
@@ -75,12 +80,32 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                         )
                         OutlinedTextField(
                             value = bootstrapUrl,
-                            onValueChange = { bootstrapUrl = it },
+                            onValueChange = {
+                                bootstrapUrl = it
+                                bootstrapSaveStatus = null
+                            },
                             label = { Text("Bootstrap ZIP URL") },
+                            placeholder = { Text(defaultBootstrapUrl) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                         )
-                        Button(onClick = { vm.setBootstrapUrl(bootstrapUrl) }) { Text("Save URL") }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = {
+                                vm.setBootstrapUrl(bootstrapUrl)
+                                bootstrapSaveStatus = "Saved"
+                            }) { Text("Save URL") }
+                            OutlinedButton(onClick = {
+                                bootstrapUrl = defaultBootstrapUrl
+                                bootstrapSaveStatus = null
+                            }) { Text("Use default") }
+                        }
+                        if (bootstrapSaveStatus != null) {
+                            Text(
+                                bootstrapSaveStatus!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 }
             }

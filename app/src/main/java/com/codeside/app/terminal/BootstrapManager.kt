@@ -1,6 +1,7 @@
 package com.codeside.app.terminal
 
 import android.content.Context
+import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -135,5 +136,19 @@ class BootstrapManager(private val context: Context) {
             throw IOException("Unsafe zip entry: $name")
         }
         return target
+    }
+
+    companion object {
+        fun defaultBootstrapUrl(): String {
+            val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: Build.CPU_ABI ?: "armeabi-v7a"
+            val arch = when {
+                abi.contains("arm64") || abi.contains("aarch64") -> "aarch64"
+                abi.contains("armeabi") || abi == "arm" -> "arm"
+                abi.contains("x86_64") -> "x86_64"
+                abi.contains("x86") || abi.contains("i686") -> "i686"
+                else -> "arm"
+            }
+            return "https://github.com/termux/termux-packages/releases/latest/download/bootstrap-$arch.zip"
+        }
     }
 }

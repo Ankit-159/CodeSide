@@ -44,5 +44,5 @@ class TerminalViewModel(app: Application) : AndroidViewModel(app) {
     fun installBootstrap(url: String) = terminal.installBootstrap(url)
     fun installDeb(url: String) = terminal.installDeb(url)
     fun installTermuxPackage(name: String) = terminal.installTermuxPackage(name)
-    fun currentBootstrapUrl(): String = settingsStore.state.value.bootstrapUrl
+    fun currentBootstrapUrl(): String = settingsStore.state.value.bootstrapUrl.ifBlank { com.codeside.app.terminal.BootstrapManager.defaultBootstrapUrl() }
 }

@@ -5,6 +5,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -141,46 +143,70 @@ private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
             )
         }
 
-        AndroidView(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            factory = { ctx ->
-                TerminalView(ctx, null).apply {
-                    setTerminalViewClient(object : TerminalViewClient {
-                        override fun onScale(scale: Float): Float = scale
-                        override fun onSingleTapUp(e: MotionEvent) {
-                            requestFocus()
-                            (ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
-                                ?.showSoftInput(this@apply, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-                        }
-                        override fun shouldBackButtonBeMappedToEscape() = false
-                        override fun shouldEnforceCharBasedInput() = false
-                        override fun shouldUseCtrlSpaceWorkaround() = false
-                        override fun isTerminalViewSelected() = true
-                        override fun copyModeChanged(copyMode: Boolean) {}
-                        override fun onKeyDown(keyCode: Int, e: KeyEvent, session: TerminalSession?) = false
-                        override fun onKeyUp(keyCode: Int, e: KeyEvent) = false
-                        override fun onLongPress(event: MotionEvent) = false
-                        override fun readControlKey() = false
-                        override fun readAltKey() = false
-                        override fun readShiftKey() = false
-                        override fun readFnKey() = false
-                        override fun onCodePoint(codePoint: Int, ctrlDown: Boolean, session: TerminalSession?) = false
-                        override fun onEmulatorSet() {}
-                        override fun logError(tag: String?, message: String?) {}
-                        override fun logWarn(tag: String?, message: String?) {}
-                        override fun logInfo(tag: String?, message: String?) {}
-                        override fun logDebug(tag: String?, message: String?) {}
-                        override fun logVerbose(tag: String?, message: String?) {}
-                        override fun logStackTraceWithMessage(tag: String?, message: String?, e: Exception?) {}
-                        override fun logStackTrace(tag: String?, e: Exception?) {}
-                    })
-                    isFocusable = true
-                    isFocusableInTouchMode = true
-                    terminalView = this
+        Box(modifier = Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    TerminalView(ctx, null).apply {
+                        setTerminalViewClient(object : TerminalViewClient {
+                            override fun onScale(scale: Float): Float = scale
+                            override fun onSingleTapUp(e: MotionEvent) {
+                                requestFocus()
+                                (ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+                                    ?.showSoftInput(this@apply, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                            }
+                            override fun shouldBackButtonBeMappedToEscape() = false
+                            override fun shouldEnforceCharBasedInput() = false
+                            override fun shouldUseCtrlSpaceWorkaround() = false
+                            override fun isTerminalViewSelected() = true
+                            override fun copyModeChanged(copyMode: Boolean) {}
+                            override fun onKeyDown(keyCode: Int, e: KeyEvent, session: TerminalSession?) = false
+                            override fun onKeyUp(keyCode: Int, e: KeyEvent) = false
+                            override fun onLongPress(event: MotionEvent) = false
+                            override fun readControlKey() = false
+                            override fun readAltKey() = false
+                            override fun readShiftKey() = false
+                            override fun readFnKey() = false
+                            override fun onCodePoint(codePoint: Int, ctrlDown: Boolean, session: TerminalSession?) = false
+                            override fun onEmulatorSet() {}
+                            override fun logError(tag: String?, message: String?) {}
+                            override fun logWarn(tag: String?, message: String?) {}
+                            override fun logInfo(tag: String?, message: String?) {}
+                            override fun logDebug(tag: String?, message: String?) {}
+                            override fun logVerbose(tag: String?, message: String?) {}
+                            override fun logStackTraceWithMessage(tag: String?, message: String?, e: Exception?) {}
+                            override fun logStackTrace(tag: String?, e: Exception?) {}
+                        })
+                        isFocusable = true
+                        isFocusableInTouchMode = true
+                        terminalView = this
+                    }
+                },
+                update = { view -> terminalView = view },
+            )
+            if (session == null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        "Terminal not started",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        "Press Start to launch the in-app terminal. If it fails, the error will appear above.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
-            },
-            update = { view -> terminalView = view },
-        )
+            }
+        }
     }
 
     DisposableEffect(Unit) {
