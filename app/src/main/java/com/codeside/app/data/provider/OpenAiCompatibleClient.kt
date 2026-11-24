@@ -204,6 +204,10 @@ class OpenAiCompatibleClient(
             put("query", buildJsonObject { put("type", "string") })
             put("path", buildJsonObject { put("type", "string") })
         }, listOf("query"))
+        tool("list_granted_folders", "List SAF folder URIs granted by the user", buildJsonObject {})
+        tool("read_granted_uri", "Read content from a granted SAF URI", buildJsonObject {
+            put("uri", buildJsonObject { put("type", "string") })
+        }, listOf("uri"))
     }
 
     private fun parseExtraHeaders(raw: String): Map<String, String> = parseStringMap(raw)

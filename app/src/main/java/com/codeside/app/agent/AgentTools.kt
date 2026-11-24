@@ -1,6 +1,9 @@
 package com.codeside.app.agent
 
 import android.content.Context
+import android.net.Uri
+import android.provider.DocumentsContract
+import com.codeside.app.CodeSideApplication
 import com.codeside.app.terminal.TerminalEnvironment
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -89,4 +92,20 @@ class AgentTools(context: Context) {
         val text = if (out.isBlank()) "(no output)" else out.take(200_000)
         if (code == 0) ToolResult(true, text) else ToolResult(false, "exit $code\n$text")
     }.getOrElse { ToolResult(false, it.message ?: "run_command failed") }
+
+    fun listGrantedFolders(): ToolResult = runCatching {
+        val store = (appContext as? CodeSideApplication)?.settingsStore ?: return ToolResult(false, "Settings unavailable")
+        val granted = store.state.value.grantedFolders
+        if (granted.isEmpty()) ToolResult(true, "(no granted folders)")
+        else ToolResult(true, granted.joinToString("\n"))
+    }.getOrElse { ToolResult(false, it.message ?: "list_granted_folders failed") }
+
+    fun readGrantedUri(uriString: String): ToolResult = runCatching {
+        val uri = Uri.parse(uriString)
+        val resolver = appContext.contentResolver
+        val text = resolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            ?: return ToolResult(false, "Could not open URI")
+        val limit = 200_000
+        if (text.length > limit) ToolResult(true, text.take(limit) + "\n...[truncated]") else ToolResult(true, text)
+    }.getOrElse { ToolResult(false, it.message ?: "read_granted_uri failed") }
 }

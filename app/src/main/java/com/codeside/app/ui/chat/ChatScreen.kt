@@ -153,7 +153,8 @@ private fun MessageBubble(msg: ChatMessage) {
                 Spacer(Modifier.height(6.dp))
             }
             if (msg.content.isNotBlank()) {
-                Text(msg.content, style = MaterialTheme.typography.bodyMedium)
+                if (isUser) Text(msg.content, style = MaterialTheme.typography.bodyMedium)
+                else SimpleMarkdown(msg.content)
             } else if (msg.isStreaming) {
                 Text("…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

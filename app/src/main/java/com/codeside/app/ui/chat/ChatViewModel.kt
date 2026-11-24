@@ -12,6 +12,7 @@ import com.codeside.app.data.model.ToolCardState
 import com.codeside.app.data.provider.Cancellable
 import com.codeside.app.data.provider.ProviderEvent
 import com.codeside.app.data.provider.ProviderFactory
+import com.codeside.app.data.store.ChatStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,8 +39,9 @@ data class ChatUiState(
 class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val settingsStore = (app as CodeSideApplication).settingsStore
     private val agentTools = AgentTools(app.applicationContext)
+    private val chatStore = ChatStore(app.applicationContext)
     private val json = Json { ignoreUnknownKeys = true }
-    private val _uiState = MutableStateFlow(ChatUiState())
+    private val _uiState = MutableStateFlow(ChatUiState(messages = chatStore.load()))
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var currentCall: Cancellable? = null
@@ -55,11 +57,16 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         _uiState.update { it.copy(error = null) }
     }
 
+    private fun persist() {
+        chatStore.save(_uiState.value.messages)
+    }
+
     fun send() {
         val text = _uiState.value.input.trim()
         if (text.isBlank() || _uiState.value.isStreaming) return
         val userMsg = ChatMessage(role = ChatRole.USER, content = text)
         _uiState.update { it.copy(messages = it.messages + userMsg, input = "", error = null) }
+        persist()
         startAssistantResponse()
     }
 
@@ -134,7 +141,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         messages = state.messages.map { if (it.isStreaming) it.copy(isStreaming = calls.isNotEmpty()) else it },
                     )
                 }
-                if (calls.isNotEmpty()) executeToolCalls(calls)
+                if (calls.isNotEmpty()) executeToolCalls(calls) else persist()
             }
         }
     }
@@ -168,6 +175,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val msgs = completedToolMessages.toList()
             completedToolMessages.clear()
             _uiState.update { it.copy(messages = it.messages + msgs, isStreaming = false) }
+            persist()
             startAssistantResponse()
             return
         }
@@ -241,6 +249,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             "edit_file" -> agentTools.editFile(s("path"), s("oldString"), s("newString"))
             "list_dir" -> agentTools.listDir(s("path").ifBlank { "." })
             "search" -> agentTools.search(s("query"), s("path").ifBlank { "." })
+            "list_granted_folders" -> agentTools.listGrantedFolders()
+            "read_granted_uri" -> agentTools.readGrantedUri(s("uri"))
             else -> com.codeside.app.agent.ToolResult(false, "Unknown tool: $name")
         }
     }

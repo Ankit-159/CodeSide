@@ -21,6 +21,18 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val ks = System.getenv("CODESIDE_KEYSTORE")
+            if (!ks.isNullOrBlank()) {
+                storeFile = file(ks)
+                storePassword = System.getenv("CODESIDE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("CODESIDE_KEY_ALIAS")
+                keyPassword = System.getenv("CODESIDE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -32,6 +44,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            val ks = System.getenv("CODESIDE_KEYSTORE")
+            if (!ks.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

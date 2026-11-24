@@ -93,5 +93,33 @@ class FilesViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun deleteFile(path: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val f = workspace.resolve(path)
+                if (f.exists()) f.delete()
+                refresh()
+                _uiState.value = _uiState.value.copy(status = "Deleted $path")
+            }.onFailure { _uiState.value = _uiState.value.copy(status = "Delete failed: ${it.message}") }
+        }
+    }
+
+    fun renameFile(oldPath: String, newName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val src = workspace.resolve(oldPath)
+                val clean = newName.trim().replace("/", "_")
+                require(clean.isNotBlank()) { "Name cannot be empty" }
+                val dst = src.parentFile?.resolve(clean) ?: workspace.resolve(clean)
+                val resolvedDst = dst.canonicalFile
+                val root = workspace.root.canonicalFile
+                require(resolvedDst.path == root.path || resolvedDst.path.startsWith(root.path + File.separator)) { "Invalid name" }
+                src.renameTo(resolvedDst)
+                refresh()
+                _uiState.value = _uiState.value.copy(status = "Renamed to ${resolvedDst.name}")
+            }.onFailure { _uiState.value = _uiState.value.copy(status = "Rename failed: ${it.message}") }
+        }
+    }
+
     fun clearStatus() { _uiState.value = _uiState.value.copy(status = null) }
 }

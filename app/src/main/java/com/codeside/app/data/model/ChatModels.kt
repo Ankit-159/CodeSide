@@ -1,11 +1,15 @@
 package com.codeside.app.data.model
 
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
+@Serializable
 enum class ChatRole { USER, ASSISTANT, SYSTEM, TOOL }
 
+@Serializable
 enum class ToolCardState { RUNNING, DONE, ERROR }
 
+@Serializable
 data class ToolCard(
     val id: String = UUID.randomUUID().toString(),
     val title: String,
@@ -14,12 +18,14 @@ data class ToolCard(
     val expanded: Boolean = false,
 )
 
+@Serializable
 data class ToolCallInfo(
     val id: String,
     val name: String,
     val arguments: String,
 )
 
+@Serializable
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val role: ChatRole,
