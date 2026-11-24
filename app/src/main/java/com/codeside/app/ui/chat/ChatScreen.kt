@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -49,7 +51,7 @@ import com.codeside.app.data.model.ToolCardState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(vm: ChatViewModel = viewModel()) {
+fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel()) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
@@ -60,7 +62,21 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("CodeSide") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("CodeSide") },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { vm.newChat() }) {
+                        Icon(Icons.Default.Add, contentDescription = "New chat")
+                    }
+                },
+            )
+        },
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
     ) { padding ->
         Column(

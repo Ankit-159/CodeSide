@@ -18,7 +18,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -46,16 +50,16 @@ import com.termux.view.TerminalView
 import com.termux.view.TerminalViewClient
 
 @Composable
-fun TerminalScreen(vm: TerminalViewModel = viewModel()) {
+fun TerminalScreen(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel = viewModel()) {
     if (Build.VERSION.SDK_INT >= 24) {
-        TermuxTerminal(vm)
+        TermuxTerminal(onOpenDrawer = onOpenDrawer, vm = vm)
     } else {
-        LegacyTerminal(vm)
+        LegacyTerminal(onOpenDrawer = onOpenDrawer, vm = vm)
     }
 }
 
 @Composable
-private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
+private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel = viewModel()) {
     var showInstall by remember { mutableStateOf(false) }
     var bootstrapUrl by remember { mutableStateOf("") }
     var session by remember { mutableStateOf<TerminalSession?>(null) }
@@ -128,12 +132,16 @@ private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Text("Terminal", style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }
+                Text("Terminal", style = MaterialTheme.typography.titleMedium)
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
@@ -224,7 +232,7 @@ private fun TermuxTerminal(vm: TerminalViewModel = viewModel()) {
 }
 
 @Composable
-private fun LegacyTerminal(vm: TerminalViewModel = viewModel()) {
+private fun LegacyTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel = viewModel()) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var showInstall by remember { mutableStateOf(false) }
@@ -258,12 +266,16 @@ private fun LegacyTerminal(vm: TerminalViewModel = viewModel()) {
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Text("Terminal", style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }
+                Text("Terminal", style = MaterialTheme.typography.titleMedium)
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }

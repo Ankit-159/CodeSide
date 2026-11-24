@@ -57,6 +57,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         _uiState.update { it.copy(error = null) }
     }
 
+    fun newChat() {
+        stop()
+        chatStore.clear()
+        _uiState.update { ChatUiState() }
+    }
+
     private fun persist() {
         chatStore.save(_uiState.value.messages)
     }
