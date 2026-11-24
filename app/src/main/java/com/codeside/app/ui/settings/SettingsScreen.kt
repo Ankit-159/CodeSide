@@ -85,6 +85,24 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                 }
             }
 
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Allowed tools", style = MaterialTheme.typography.titleMedium)
+                        if (state.allowedTools.isEmpty()) {
+                            Text("No always-allowed tools.", style = MaterialTheme.typography.bodySmall)
+                        } else {
+                            state.allowedTools.forEach { tool ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(tool, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                                    TextButton(onClick = { vm.removeAllowedTool(tool) }) { Text("Remove") }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             items(state.profiles, key = { it.id }) { profile ->
                 val active = state.activeProfileId == profile.id
                 Card(

@@ -96,6 +96,7 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
                         Text(state.pendingApproval!!.call.arguments.take(500), style = MaterialTheme.typography.bodySmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { vm.approvePendingTool() }) { Text("Approve") }
+                            TextButton(onClick = { vm.allowToolAlways(state.pendingApproval!!.call.name) }) { Text("Always allow") }
                             TextButton(onClick = { vm.denyPendingTool() }) { Text("Deny") }
                         }
                     }

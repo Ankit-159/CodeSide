@@ -18,6 +18,7 @@ data class SettingsState(
     val profiles: List<ProviderProfile> = emptyList(),
     val activeProfileId: String? = null,
     val bootstrapUrl: String = "",
+    val allowedTools: List<String> = emptyList(),
 )
 
 class SettingsStore(context: Context) {
@@ -93,6 +94,17 @@ class SettingsStore(context: Context) {
 
     fun setBootstrapUrl(url: String) {
         persist(_state.value.copy(bootstrapUrl = url.trim()))
+    }
+
+    fun allowTool(name: String) {
+        val current = _state.value
+        if (name.isBlank() || current.allowedTools.contains(name)) return
+        persist(current.copy(allowedTools = current.allowedTools + name))
+    }
+
+    fun removeAllowedTool(name: String) {
+        val current = _state.value
+        persist(current.copy(allowedTools = current.allowedTools.filterNot { it == name }))
     }
 
     fun replaceAll(state: SettingsState) {

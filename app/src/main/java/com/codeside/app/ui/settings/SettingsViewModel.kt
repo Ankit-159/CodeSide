@@ -31,4 +31,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setBootstrapUrl(url: String) {
         store.setBootstrapUrl(url)
     }
+
+    fun removeAllowedTool(name: String) {
+        store.removeAllowedTool(name)
+    }
 }

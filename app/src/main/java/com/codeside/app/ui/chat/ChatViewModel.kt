@@ -154,7 +154,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun needsApproval(name: String): Boolean {
+        if (settingsStore.state.value.allowedTools.contains(name)) return false
         return name == "run_command" || name == "write_file" || name == "edit_file"
+    }
+
+    fun allowToolAlways(name: String) {
+        settingsStore.allowTool(name)
+        approvePendingTool()
     }
 
     private fun processNextTool() {
