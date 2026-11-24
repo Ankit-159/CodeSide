@@ -3,6 +3,7 @@ package com.codeside.app.ui
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
@@ -19,12 +20,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.codeside.app.ui.chat.ChatScreen
+import com.codeside.app.ui.files.FilesScreen
 import com.codeside.app.ui.settings.SettingsScreen
 import com.codeside.app.ui.terminal.TerminalScreen
 
 private enum class Dest(val route: String, val label: String) {
     Chat("chat", "Chat"),
     Terminal("terminal", "Terminal"),
+    Files("files", "Files"),
     Settings("settings", "Settings"),
 }
 
@@ -37,42 +40,26 @@ fun CodeSideApp() {
     Scaffold(
         bottomBar = {
             NavigationBar {
-                NavigationBarItem(
-                    selected = currentRoute == Dest.Chat.route,
-                    onClick = {
-                        navController.navigate(Dest.Chat.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = Dest.Chat.label) },
-                    label = { Text(Dest.Chat.label) },
-                )
-                NavigationBarItem(
-                    selected = currentRoute == Dest.Terminal.route,
-                    onClick = {
-                        navController.navigate(Dest.Terminal.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = { Icon(Icons.Default.Terminal, contentDescription = Dest.Terminal.label) },
-                    label = { Text(Dest.Terminal.label) },
-                )
-                NavigationBarItem(
-                    selected = currentRoute == Dest.Settings.route,
-                    onClick = {
-                        navController.navigate(Dest.Settings.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = Dest.Settings.label) },
-                    label = { Text(Dest.Settings.label) },
-                )
+                listOf(Dest.Chat, Dest.Terminal, Dest.Files, Dest.Settings).forEach { dest ->
+                    val icon = when (dest) {
+                        Dest.Chat -> Icons.AutoMirrored.Filled.Chat
+                        Dest.Terminal -> Icons.Default.Terminal
+                        Dest.Files -> Icons.Default.Folder
+                        Dest.Settings -> Icons.Default.Settings
+                    }
+                    NavigationBarItem(
+                        selected = currentRoute == dest.route,
+                        onClick = {
+                            navController.navigate(dest.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(icon, contentDescription = dest.label) },
+                        label = { Text(dest.label) },
+                    )
+                }
             }
         },
     ) { innerPadding ->
@@ -83,6 +70,7 @@ fun CodeSideApp() {
         ) {
             composable(Dest.Chat.route) { ChatScreen() }
             composable(Dest.Terminal.route) { TerminalScreen() }
+            composable(Dest.Files.route) { FilesScreen() }
             composable(Dest.Settings.route) { SettingsScreen() }
         }
     }
