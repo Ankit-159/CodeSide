@@ -1,7 +1,9 @@
 package com.codeside.app.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -22,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -101,20 +105,47 @@ fun CodeSideApp() {
                 }
             },
         ) {
-            Scaffold(
-                contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-            ) { _ ->
-                NavHost(
-                    navController = navController,
-                    startDestination = Dest.Chat.route,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.systemBars),
+            Row(Modifier.fillMaxSize()) {
+                NavigationRail(
+                    modifier = Modifier.fillMaxHeight(),
+                    containerColor = MaterialTheme.colorScheme.surface,
                 ) {
-                    composable(Dest.Chat.route) { ChatScreen(onOpenDrawer = openDrawer) }
-                    composable(Dest.Terminal.route) { TerminalScreen(onOpenDrawer = openDrawer) }
-                    composable(Dest.Files.route) { FilesScreen(onOpenDrawer = openDrawer) }
-                    composable(Dest.Settings.route) { SettingsScreen(onOpenDrawer = openDrawer) }
+                    listOf(Dest.Chat, Dest.Terminal, Dest.Files, Dest.Settings).forEach { dest ->
+                        val icon = when (dest) {
+                            Dest.Chat -> Icons.AutoMirrored.Filled.Chat
+                            Dest.Terminal -> Icons.Default.Terminal
+                            Dest.Files -> Icons.Default.Folder
+                            Dest.Settings -> Icons.Default.Settings
+                        }
+                        NavigationRailItem(
+                            selected = currentRoute == dest.route,
+                            onClick = {
+                                navController.navigate(dest.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { Icon(icon, contentDescription = dest.label) },
+                        )
+                    }
+                }
+                Scaffold(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+                ) { _ ->
+                    NavHost(
+                        navController = navController,
+                        startDestination = Dest.Chat.route,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(WindowInsets.systemBars),
+                    ) {
+                        composable(Dest.Chat.route) { ChatScreen(onOpenDrawer = openDrawer) }
+                        composable(Dest.Terminal.route) { TerminalScreen(onOpenDrawer = openDrawer) }
+                        composable(Dest.Files.route) { FilesScreen(onOpenDrawer = openDrawer) }
+                        composable(Dest.Settings.route) { SettingsScreen(onOpenDrawer = openDrawer) }
+                    }
                 }
             }
         }

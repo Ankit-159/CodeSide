@@ -18,6 +18,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,94 +70,21 @@ fun SettingsScreen(onOpenDrawer: () -> Unit = {}, vm: SettingsViewModel = viewMo
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(12.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                Text("API Profiles", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = { vm.addPreset(ProviderType.OPENAI) }) { Text("OpenAI") }
-                    OutlinedButton(onClick = { vm.addPreset(ProviderType.ANTHROPIC) }) { Text("Anthropic") }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = { vm.addPreset(ProviderType.GOOGLE) }) { Text("Google") }
-                    OutlinedButton(onClick = { vm.addPreset(ProviderType.CUSTOM) }) { Text("Custom") }
-                }
-            }
+            item { Spacer(Modifier.height(4.dp)) }
 
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Terminal bootstrap", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Default download link for bootstrap ZIP (you can change it).",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        OutlinedTextField(
-                            value = bootstrapUrl,
-                            onValueChange = {
-                                bootstrapUrl = it
-                                bootstrapSaveStatus = null
-                            },
-                            label = { Text("Bootstrap ZIP URL") },
-                            placeholder = { Text(defaultBootstrapUrl) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = {
-                                vm.setBootstrapUrl(bootstrapUrl)
-                                bootstrapSaveStatus = "Saved"
-                            }) { Text("Save URL") }
-                            OutlinedButton(onClick = {
-                                bootstrapUrl = defaultBootstrapUrl
-                                bootstrapSaveStatus = null
-                            }) { Text("Use default") }
-                        }
-                        if (bootstrapSaveStatus != null) {
-                            Text(
-                                bootstrapSaveStatus!!,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+                SectionCard("API Profiles") {
+                    Text("Add a provider preset, then edit endpoint/model/key as needed.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { vm.addPreset(ProviderType.OPENAI) }, modifier = Modifier.weight(1f)) { Text("OpenAI") }
+                        OutlinedButton(onClick = { vm.addPreset(ProviderType.ANTHROPIC) }, modifier = Modifier.weight(1f)) { Text("Anthropic") }
                     }
-                }
-            }
-
-            item {
-                val clipboard = LocalClipboardManager.current
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Diagnostics", style = MaterialTheme.typography.titleMedium)
-                        Text(com.codeside.app.util.AppLog.getLogFilePath(), style = MaterialTheme.typography.bodySmall)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { clipboard.setText(AnnotatedString(com.codeside.app.util.AppLog.getLogText().take(20000))) }) { Text("Copy log") }
-                            OutlinedButton(onClick = { com.codeside.app.util.AppLog.clearCrash() }) { Text("Clear crash") }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Allowed tools", style = MaterialTheme.typography.titleMedium)
-                        if (state.allowedTools.isEmpty()) {
-                            Text("No always-allowed tools.", style = MaterialTheme.typography.bodySmall)
-                        } else {
-                            state.allowedTools.forEach { tool ->
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(tool, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                                    TextButton(onClick = { vm.removeAllowedTool(tool) }) { Text("Remove") }
-                                }
-                            }
-                        }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { vm.addPreset(ProviderType.GOOGLE) }, modifier = Modifier.weight(1f)) { Text("Google") }
+                        OutlinedButton(onClick = { vm.addPreset(ProviderType.CUSTOM) }, modifier = Modifier.weight(1f)) { Text("Custom") }
                     }
                 }
             }
@@ -172,12 +100,61 @@ fun SettingsScreen(onOpenDrawer: () -> Unit = {}, vm: SettingsViewModel = viewMo
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(profile.name.ifBlank { profile.type.name }, style = MaterialTheme.typography.titleSmall)
-                        Text("${profile.type} · ${profile.model}", style = MaterialTheme.typography.bodySmall)
-                        Text(profile.baseUrl, style = MaterialTheme.typography.bodySmall)
+                        Text("${profile.type} · ${profile.model}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(profile.baseUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { vm.setActive(profile.id) }) { Text(if (active) "Active" else "Set active") }
                             TextButton(onClick = { editing = profile }) { Text("Edit") }
                             TextButton(onClick = { vm.delete(profile.id) }) { Text("Delete") }
+                        }
+                    }
+                }
+            }
+
+            item {
+                SectionCard("Terminal Bootstrap") {
+                    Text("Default bootstrap ZIP URL. Used when installing bootstrap from the terminal menu.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = bootstrapUrl,
+                        onValueChange = { bootstrapUrl = it; bootstrapSaveStatus = null },
+                        label = { Text("Bootstrap ZIP URL") },
+                        placeholder = { Text(defaultBootstrapUrl) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { vm.setBootstrapUrl(bootstrapUrl); bootstrapSaveStatus = "Saved" }) { Text("Save URL") }
+                        OutlinedButton(onClick = { bootstrapUrl = defaultBootstrapUrl; bootstrapSaveStatus = null }) { Text("Use default") }
+                    }
+                    if (bootstrapSaveStatus != null) {
+                        Text(bootstrapSaveStatus!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            item {
+                val clipboard = LocalClipboardManager.current
+                SectionCard("Diagnostics") {
+                    Text("Log file is saved in app storage. Use Copy log to share crashes/issues.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(com.codeside.app.util.AppLog.getLogFilePath(), style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { clipboard.setText(AnnotatedString(com.codeside.app.util.AppLog.getLogText().take(20000))) }) { Text("Copy log") }
+                        OutlinedButton(onClick = { com.codeside.app.util.AppLog.clearCrash() }) { Text("Clear crash") }
+                    }
+                }
+            }
+
+            item {
+                SectionCard("Allowed Tools") {
+                    Text("Tools you marked “Always allow” for agent actions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (state.allowedTools.isEmpty()) {
+                        Text("No always-allowed tools.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        state.allowedTools.forEach { tool ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(tool, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                                TextButton(onClick = { vm.removeAllowedTool(tool) }) { Text("Remove") }
+                            }
                         }
                     }
                 }
@@ -196,6 +173,16 @@ fun SettingsScreen(onOpenDrawer: () -> Unit = {}, vm: SettingsViewModel = viewMo
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun SectionCard(title: String, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            content()
         }
     }
 }
