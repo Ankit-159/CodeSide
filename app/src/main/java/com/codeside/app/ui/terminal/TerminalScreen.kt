@@ -184,7 +184,8 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
-                    SafeTerminalView(ctx, null).apply {
+                    val container = SafeTerminalView(ctx, null)
+                    container.terminalView.apply {
                         setTerminalViewClient(object : TerminalViewClient {
                             override fun onScale(scale: Float): Float = scale
                             override fun onSingleTapUp(e: MotionEvent) {
@@ -218,8 +219,9 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                         isFocusableInTouchMode = true
                         terminalView = this
                     }
+                    container
                 },
-                update = { view -> terminalView = view },
+                update = { view -> terminalView = view.terminalView },
             )
             if (session == null) {
                 Column(

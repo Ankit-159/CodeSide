@@ -1,28 +1,23 @@
 package com.codeside.app.ui.terminal
 
 import android.content.Context
+import android.graphics.Canvas
 import android.util.AttributeSet
+import android.widget.FrameLayout
 import com.codeside.app.util.AppLog
 import com.termux.view.TerminalView
 
 class SafeTerminalView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-) : TerminalView(context, attrs) {
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        try {
-            super.onSizeChanged(w, h, oldw, oldh)
-        } catch (t: Throwable) {
-            AppLog.logThrowable("TerminalView", "onSizeChanged crash ignored", t)
-        }
+) : FrameLayout(context, attrs) {
+
+    val terminalView: TerminalView = TerminalView(context, attrs).apply {
+        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
     }
 
-    override fun onDraw(canvas: android.graphics.Canvas) {
-        try {
-            super.onDraw(canvas)
-        } catch (t: Throwable) {
-            AppLog.logThrowable("TerminalView", "onDraw crash ignored", t)
-        }
+    init {
+        addView(terminalView)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -30,10 +25,26 @@ class SafeTerminalView @JvmOverloads constructor(
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         } catch (t: Throwable) {
             AppLog.logThrowable("TerminalView", "onMeasure crash ignored", t)
-            super.setMeasuredDimension(
-                android.view.View.MeasureSpec.getSize(widthMeasureSpec),
-                android.view.View.MeasureSpec.getSize(heightMeasureSpec),
+            setMeasuredDimension(
+                MeasureSpec.getSize(widthMeasureSpec),
+                MeasureSpec.getSize(heightMeasureSpec),
             )
+        }
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        try {
+            super.onLayout(changed, left, top, right, bottom)
+        } catch (t: Throwable) {
+            AppLog.logThrowable("TerminalView", "onLayout crash ignored", t)
+        }
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        try {
+            super.dispatchDraw(canvas)
+        } catch (t: Throwable) {
+            AppLog.logThrowable("TerminalView", "dispatchDraw crash ignored", t)
         }
     }
 }
