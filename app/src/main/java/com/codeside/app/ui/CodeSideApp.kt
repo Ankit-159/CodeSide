@@ -37,9 +37,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -75,6 +77,9 @@ fun CodeSideApp() {
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     var loading by remember { mutableStateOf(true) }
     var crashText by remember { mutableStateOf(if (com.codeside.app.util.AppLog.hasCrash()) com.codeside.app.util.AppLog.readCrash() else null) }
+    val app = LocalContext.current.applicationContext as com.codeside.app.CodeSideApplication
+    val settings by app.settingsStore.state.collectAsStateWithLifecycle()
+    val reduceMotion = settings.reduceMotion
     LaunchedEffect(Unit) { delay(500); loading = false }
 
     Box(Modifier.fillMaxSize()) {
@@ -144,10 +149,10 @@ fun CodeSideApp() {
                         modifier = Modifier
                             .fillMaxSize()
                             .windowInsetsPadding(WindowInsets.systemBars),
-                        enterTransition = { fadeIn(androidx.compose.animation.core.tween(180)) + slideInHorizontally(androidx.compose.animation.core.tween(180)) { it / 24 } },
-                        exitTransition = { fadeOut(androidx.compose.animation.core.tween(120)) },
-                        popEnterTransition = { fadeIn(androidx.compose.animation.core.tween(180)) },
-                        popExitTransition = { fadeOut(androidx.compose.animation.core.tween(120)) + slideOutHorizontally(androidx.compose.animation.core.tween(180)) { it / 24 } },
+                        enterTransition = { if (reduceMotion) androidx.compose.animation.EnterTransition.None else fadeIn(androidx.compose.animation.core.tween(180)) + slideInHorizontally(androidx.compose.animation.core.tween(180)) { it / 24 } },
+                        exitTransition = { if (reduceMotion) androidx.compose.animation.ExitTransition.None else fadeOut(androidx.compose.animation.core.tween(120)) },
+                        popEnterTransition = { if (reduceMotion) androidx.compose.animation.EnterTransition.None else fadeIn(androidx.compose.animation.core.tween(180)) },
+                        popExitTransition = { if (reduceMotion) androidx.compose.animation.ExitTransition.None else fadeOut(androidx.compose.animation.core.tween(120)) + slideOutHorizontally(androidx.compose.animation.core.tween(180)) { it / 24 } },
                     ) {
                         composable(Dest.Chat.route) { ChatScreen(onOpenDrawer = openDrawer) }
                         composable(Dest.Terminal.route) { TerminalScreen(onOpenDrawer = openDrawer) }

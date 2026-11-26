@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -133,6 +135,19 @@ fun SettingsScreen(onOpenDrawer: () -> Unit = {}, vm: SettingsViewModel = viewMo
             }
 
             item {
+                SectionCard("Performance") {
+                    Text("Auto-detected defaults are applied for your Android version. Reduce motion helps on older/slower devices.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Reduce motion", style = MaterialTheme.typography.bodyMedium)
+                            Text("Disable tab transitions and heavy animations", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = state.reduceMotion, onCheckedChange = vm::setReduceMotion)
+                    }
+                }
+            }
+
+            item {
                 val clipboard = LocalClipboardManager.current
                 SectionCard("Diagnostics") {
                     Text("Log file is saved in app storage. Use Copy log to share crashes/issues.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -157,6 +172,22 @@ fun SettingsScreen(onOpenDrawer: () -> Unit = {}, vm: SettingsViewModel = viewMo
                             }
                         }
                     }
+                }
+            }
+
+            item {
+                val context = LocalContext.current
+                val version = runCatching { com.codeside.app.BuildConfig.VERSION_NAME }.getOrDefault("unknown")
+                val installedOn = runCatching {
+                    val pm = context.packageManager
+                    val info = pm.getPackageInfo(context.packageName, 0)
+                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date(info.firstInstallTime))
+                }.getOrDefault("unknown")
+                SectionCard("About") {
+                    Text("CodeSide — Your AI. Your Code. Your Space.", style = MaterialTheme.typography.bodyMedium)
+                    Text("Version: $version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Installed on: $installedOn", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("GitHub: https://github.com/Ankit-159/CodeSide", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
 

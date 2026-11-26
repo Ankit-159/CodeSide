@@ -35,4 +35,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun removeAllowedTool(name: String) {
         store.removeAllowedTool(name)
     }
+
+    fun setReduceMotion(enabled: Boolean) {
+        store.setReduceMotion(enabled)
+    }
 }

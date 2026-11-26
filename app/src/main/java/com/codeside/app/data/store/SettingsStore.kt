@@ -20,6 +20,7 @@ data class SettingsState(
     val bootstrapUrl: String = "",
     val allowedTools: List<String> = emptyList(),
     val grantedFolders: List<String> = emptyList(),
+    val reduceMotion: Boolean = android.os.Build.VERSION.SDK_INT <= 23,
 )
 
 class SettingsStore(context: Context) {
@@ -95,6 +96,10 @@ class SettingsStore(context: Context) {
 
     fun setBootstrapUrl(url: String) {
         persist(_state.value.copy(bootstrapUrl = url.trim()))
+    }
+
+    fun setReduceMotion(enabled: Boolean) {
+        persist(_state.value.copy(reduceMotion = enabled))
     }
 
     fun allowTool(name: String) {

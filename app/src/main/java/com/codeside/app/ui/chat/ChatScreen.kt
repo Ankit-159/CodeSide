@@ -112,7 +112,7 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
             ) {
                 item { Spacer(Modifier.height(4.dp)) }
                 items(state.messages, key = { it.id }) { msg ->
-                    MessageBubble(msg)
+                    MessageBubble(msg, reduceMotion = settingsState.reduceMotion)
                 }
                 if (state.error != null) {
                     item {
@@ -175,7 +175,7 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
 }
 
 @Composable
-private fun MessageBubble(msg: ChatMessage) {
+private fun MessageBubble(msg: ChatMessage, reduceMotion: Boolean = false) {
     val isUser = msg.role == ChatRole.USER
     val align = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
     val bg = if (isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant
@@ -187,7 +187,7 @@ private fun MessageBubble(msg: ChatMessage) {
                 .widthIn(max = 340.dp)
                 .clip(shape)
                 .background(bg)
-                .animateContentSize(animationSpec = tween(180))
+                .then(if (reduceMotion) Modifier else Modifier.animateContentSize(animationSpec = tween(180)))
                 .padding(12.dp),
         ) {
             if (msg.thinking.isNotBlank()) {
@@ -202,7 +202,8 @@ private fun MessageBubble(msg: ChatMessage) {
                 if (isUser) Text(msg.content, style = MaterialTheme.typography.bodyMedium)
                 else SimpleMarkdown(msg.content)
             } else if (msg.isStreaming) {
-                TypingIndicator()
+                if (reduceMotion) Text("…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                else TypingIndicator()
             }
         }
     }
