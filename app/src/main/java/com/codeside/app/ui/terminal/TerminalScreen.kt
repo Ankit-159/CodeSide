@@ -73,6 +73,8 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
     var terminalView by remember { mutableStateOf<TerminalView?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showLog by remember { mutableStateOf(false) }
+    var ctrlOn by remember { mutableStateOf(false) }
+    var altOn by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     fun startSession(view: TerminalView) {
@@ -219,8 +221,8 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                             override fun onKeyDown(keyCode: Int, e: KeyEvent, session: TerminalSession?) = false
                             override fun onKeyUp(keyCode: Int, e: KeyEvent) = false
                             override fun onLongPress(event: MotionEvent) = false
-                            override fun readControlKey() = false
-                            override fun readAltKey() = false
+                            override fun readControlKey(): Boolean { val v = ctrlOn; if (v) ctrlOn = false; return v }
+                            override fun readAltKey(): Boolean { val v = altOn; if (v) altOn = false; return v }
                             override fun readShiftKey() = false
                             override fun readFnKey() = false
                             override fun onCodePoint(codePoint: Int, ctrlDown: Boolean, session: TerminalSession?) = false
@@ -264,6 +266,14 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                 }
             }
         }
+
+        TerminalExtraKeys(
+            ctrlOn = ctrlOn,
+            altOn = altOn,
+            onCtrl = { ctrlOn = !ctrlOn },
+            onAlt = { altOn = !altOn },
+            onKey = { seq -> session?.write(seq) },
+        )
     }
 
     DisposableEffect(Unit) {
@@ -279,6 +289,8 @@ private fun LegacyTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
     var bootstrapUrl by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
     var showLog by remember { mutableStateOf(false) }
+    var ctrlOn by remember { mutableStateOf(false) }
+    var altOn by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.lines.size) {
         if (state.lines.isNotEmpty()) listState.animateScrollToItem(state.lines.lastIndex)
@@ -363,5 +375,59 @@ private fun LegacyTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
             )
             TextButton(onClick = { vm.sendInput() }, enabled = state.running) { Text("Send") }
         }
+        TerminalExtraKeys(
+            ctrlOn = ctrlOn,
+            altOn = altOn,
+            onCtrl = { ctrlOn = !ctrlOn },
+            onAlt = { altOn = !altOn },
+            onKey = { seq -> vm.sendRaw(seq) },
+        )
+    }
+}
+
+@Composable
+private fun TerminalExtraKeys(
+    ctrlOn: Boolean,
+    altOn: Boolean,
+    onCtrl: () -> Unit,
+    onAlt: () -> Unit,
+    onKey: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ExtraKey("ESC", active = false) { onKey("\u001B") }
+        ExtraKey("TAB", active = false) { onKey("\t") }
+        ExtraKey("CTRL", active = ctrlOn) { onCtrl() }
+        ExtraKey("ALT", active = altOn) { onAlt() }
+        ExtraKey("-", active = false) { onKey("-") }
+        ExtraKey("/", active = false) { onKey("/") }
+        ExtraKey("|", active = false) { onKey("|") }
+        ExtraKey("←", active = false) { onKey("\u001B[D") }
+        ExtraKey("↑", active = false) { onKey("\u001B[A") }
+        ExtraKey("↓", active = false) { onKey("\u001B[B") }
+        ExtraKey("→", active = false) { onKey("\u001B[C") }
+        ExtraKey("HOME", active = false) { onKey("\u001B[H") }
+        ExtraKey("END", active = false) { onKey("\u001B[F") }
+    }
+}
+
+@Composable
+private fun ExtraKey(label: String, active: Boolean, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 32.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

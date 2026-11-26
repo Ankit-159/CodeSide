@@ -38,6 +38,8 @@ class TerminalViewModel(app: Application) : AndroidViewModel(app) {
         input.value = ""
     }
 
+    fun sendRaw(text: String) = terminal.send(text)
+
     fun stop() = terminal.stop()
     fun clear() = terminal.clear()
     fun bootstrap() = terminal.bootstrap()
