@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,7 +22,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +71,8 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
     var session by remember { mutableStateOf<TerminalSession?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var terminalView by remember { mutableStateOf<TerminalView?>(null) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showLog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     fun startSession(view: TerminalView) {
@@ -81,8 +88,16 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                 override fun onSessionFinished(finishedSession: TerminalSession) {
                     view.post { session = null }
                 }
-                override fun onCopyTextToClipboard(session: TerminalSession, text: String?) {}
-                override fun onPasteTextFromClipboard(session: TerminalSession) {}
+                override fun onCopyTextToClipboard(session: TerminalSession, text: String?) {
+                    if (text.isNullOrEmpty()) return
+                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                    clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("terminal", text))
+                }
+                override fun onPasteTextFromClipboard(session: TerminalSession) {
+                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                    val clip = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+                    if (!clip.isNullOrEmpty()) session.write(clip)
+                }
                 override fun onBell(session: TerminalSession) {}
                 override fun onColorsChanged(session: TerminalSession) {}
                 override fun onTerminalCursorStateChange(state: Boolean) {}
@@ -137,23 +152,37 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }
-                Text("Terminal", style = MaterialTheme.typography.titleMedium)
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
-                TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
-                TextButton(onClick = { terminalView?.let { startSession(it) } }) { Text(if (session == null) "Start" else "Restart") }
-                TextButton(onClick = { session?.finishIfRunning(); session = null }) { Text("Stop") }
+    if (showLog) {
+        AlertDialog(
+            onDismissRequest = { showLog = false },
+            title = { Text("System log") },
+            text = {
+                androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
+                    items(termState.lines.takeLast(200)) { line ->
+                        Text(line, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showLog = false }) { Text("Close") } },
+        )
+    }
+
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).imePadding()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }
+            Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Box {
+                IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(text = { Text(if (session == null) "Start" else "Restart") }, onClick = { showMenu = false; terminalView?.let { startSession(it) } })
+                    DropdownMenuItem(text = { Text("Stop") }, onClick = { showMenu = false; session?.finishIfRunning(); session = null })
+                    DropdownMenuItem(text = { Text("Bootstrap") }, onClick = { showMenu = false; vm.bootstrap() })
+                    DropdownMenuItem(text = { Text("Install") }, onClick = { showMenu = false; if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true })
+                    DropdownMenuItem(text = { Text("System log") }, onClick = { showMenu = false; showLog = true })
+                }
             }
         }
 
@@ -166,19 +195,7 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
             )
         }
 
-        val sysLines = termState.lines.takeLast(4)
-        if (sysLines.isNotEmpty()) {
-            androidx.compose.material3.Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
-            ) {
-                Column(Modifier.padding(8.dp)) {
-                    Text("System log", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    sysLines.forEach { line ->
-                        Text(line, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
+
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
             AndroidView(
@@ -186,6 +203,7 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                 factory = { ctx ->
                     val container = SafeTerminalView(ctx, null)
                     container.terminalView.apply {
+                        setBackgroundColor(android.graphics.Color.parseColor("#111827"))
                         setTerminalViewClient(object : TerminalViewClient {
                             override fun onScale(scale: Float): Float = scale
                             override fun onSingleTapUp(e: MotionEvent) {
@@ -259,6 +277,8 @@ private fun LegacyTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
     val listState = rememberLazyListState()
     var showInstall by remember { mutableStateOf(false) }
     var bootstrapUrl by remember { mutableStateOf("") }
+    var showMenu by remember { mutableStateOf(false) }
+    var showLog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.lines.size) {
         if (state.lines.isNotEmpty()) listState.animateScrollToItem(state.lines.lastIndex)
@@ -287,23 +307,37 @@ private fun LegacyTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }
-                Text("Terminal", style = MaterialTheme.typography.titleMedium)
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                TextButton(onClick = { if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true }) { Text("Install") }
-                TextButton(onClick = { vm.bootstrap() }) { Text("Bootstrap") }
-                TextButton(onClick = { vm.clear() }) { Text("Clear") }
-                TextButton(onClick = { if (state.running) vm.stop() else vm.start() }) { Text(if (state.running) "Stop" else "Start") }
+    if (showLog) {
+        AlertDialog(
+            onDismissRequest = { showLog = false },
+            title = { Text("System log") },
+            text = {
+                androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
+                    items(state.lines.takeLast(200)) { line ->
+                        Text(line, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showLog = false }) { Text("Close") } },
+        )
+    }
+
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).imePadding()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }
+            Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Box {
+                IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(text = { Text(if (state.running) "Stop" else "Start") }, onClick = { showMenu = false; if (state.running) vm.stop() else vm.start() })
+                    DropdownMenuItem(text = { Text("Bootstrap") }, onClick = { showMenu = false; vm.bootstrap() })
+                    DropdownMenuItem(text = { Text("Install") }, onClick = { showMenu = false; if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true })
+                    DropdownMenuItem(text = { Text("Clear") }, onClick = { showMenu = false; vm.clear() })
+                    DropdownMenuItem(text = { Text("System log") }, onClick = { showMenu = false; showLog = true })
+                }
             }
         }
         LazyColumn(

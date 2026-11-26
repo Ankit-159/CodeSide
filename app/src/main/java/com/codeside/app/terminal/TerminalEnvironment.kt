@@ -44,6 +44,7 @@ class TerminalEnvironment(private val context: Context) {
             "PREFIX=${prefixDir.absolutePath}",
             "TMPDIR=${tmpDir.absolutePath}",
             "PATH=${pathParts.joinToString(":")}",
+            "LD_LIBRARY_PATH=${File(prefixDir, "lib").absolutePath}",
             "LANG=en_US.UTF-8",
             "TERM=xterm-256color",
             "COLORTERM=truecolor",
