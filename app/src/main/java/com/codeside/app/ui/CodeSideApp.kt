@@ -3,6 +3,8 @@ package com.codeside.app.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -12,6 +14,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
@@ -21,6 +24,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +35,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -60,6 +66,7 @@ fun CodeSideApp() {
     val scope = rememberCoroutineScope()
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     var loading by remember { mutableStateOf(true) }
+    var crashText by remember { mutableStateOf(if (com.codeside.app.util.AppLog.hasCrash()) com.codeside.app.util.AppLog.readCrash() else null) }
     LaunchedEffect(Unit) { delay(500); loading = false }
 
     Box(Modifier.fillMaxSize()) {
@@ -123,6 +130,37 @@ fun CodeSideApp() {
                     }
                 }
             }
+        }
+
+        if (crashText != null) {
+            val clipboard = LocalClipboardManager.current
+            AlertDialog(
+                onDismissRequest = { },
+                title = { Text("App crashed") },
+                text = {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)
+                    ) {
+                        item {
+                            Text(
+                                crashText!!.take(12000),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        clipboard.setText(AnnotatedString(crashText ?: ""))
+                    }) { Text("Copy") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        com.codeside.app.util.AppLog.clearCrash()
+                        crashText = null
+                    }) { Text("OK") }
+                },
+            )
         }
     }
 }

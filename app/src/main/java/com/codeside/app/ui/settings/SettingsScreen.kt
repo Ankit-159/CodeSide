@@ -33,6 +33,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -122,6 +124,20 @@ fun SettingsScreen(onOpenDrawer: () -> Unit = {}, vm: SettingsViewModel = viewMo
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
+                        }
+                    }
+                }
+            }
+
+            item {
+                val clipboard = LocalClipboardManager.current
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Diagnostics", style = MaterialTheme.typography.titleMedium)
+                        Text(com.codeside.app.util.AppLog.getLogFilePath(), style = MaterialTheme.typography.bodySmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { clipboard.setText(AnnotatedString(com.codeside.app.util.AppLog.getLogText().take(20000))) }) { Text("Copy log") }
+                            OutlinedButton(onClick = { com.codeside.app.util.AppLog.clearCrash() }) { Text("Clear crash") }
                         }
                     }
                 }

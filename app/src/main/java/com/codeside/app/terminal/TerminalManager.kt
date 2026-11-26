@@ -1,6 +1,7 @@
 package com.codeside.app.terminal
 
 import android.content.Context
+import com.codeside.app.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -51,6 +52,7 @@ class TerminalManager(context: Context) {
             )
             _state.update { it.copy(running = true) }
         } catch (t: Throwable) {
+            AppLog.logThrowable("TerminalManager", "start failed", t)
             completed.add("[failed to start: ${t.message}]")
             publish(running = false)
         }
@@ -82,8 +84,8 @@ class TerminalManager(context: Context) {
         scope.launch {
             appendSystem("[bootstrap] installing basic prefix...")
             val result = bootstrapManager.ensureBasicBootstrap()
-            result.onSuccess { appendSystem("[bootstrap] $it") }
-                .onFailure { appendSystem("[bootstrap] failed: ${it.message}") }
+            result.onSuccess { AppLog.log("Bootstrap", it); appendSystem("[bootstrap] $it") }
+                .onFailure { AppLog.logThrowable("Bootstrap", "basic bootstrap failed", it); appendSystem("[bootstrap] failed: ${it.message}") }
         }
     }
 
@@ -93,8 +95,8 @@ class TerminalManager(context: Context) {
         scope.launch {
             appendSystem("[bootstrap] downloading $trimmed")
             val result = bootstrapManager.installBootstrapZip(trimmed)
-            result.onSuccess { appendSystem("[bootstrap] $it") }
-                .onFailure { appendSystem("[bootstrap] failed: ${it.message}") }
+            result.onSuccess { AppLog.log("Bootstrap", it); appendSystem("[bootstrap] $it") }
+                .onFailure { AppLog.logThrowable("Bootstrap", "zip install failed: $trimmed", it); appendSystem("[bootstrap] failed: ${it.message}") }
         }
     }
 

@@ -74,6 +74,7 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
             val app = context.applicationContext as CodeSideApplication
             val env = com.codeside.app.terminal.TerminalEnvironment(app)
             env.ensureDirectories()
+            com.codeside.app.util.AppLog.log("Terminal", "startSession shell=${env.shellPath()} prefix=${env.prefixDir}")
             val client = object : TerminalSessionClient {
                 override fun onTextChanged(changedSession: TerminalSession) { view.onScreenUpdated() }
                 override fun onTitleChanged(changedSession: TerminalSession) {}
@@ -106,8 +107,10 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
             session = s
             error = null
             view.requestFocus()
+            com.codeside.app.util.AppLog.log("Terminal", "session started")
         } catch (t: Throwable) {
             error = t.message ?: "Failed to start terminal"
+            com.codeside.app.util.AppLog.logThrowable("Terminal", "startSession failed", t)
         }
     }
 
