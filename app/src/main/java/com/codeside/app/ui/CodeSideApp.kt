@@ -44,6 +44,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -140,6 +144,10 @@ fun CodeSideApp() {
                         modifier = Modifier
                             .fillMaxSize()
                             .windowInsetsPadding(WindowInsets.systemBars),
+                        enterTransition = { fadeIn(androidx.compose.animation.core.tween(180)) + slideInHorizontally(androidx.compose.animation.core.tween(180)) { it / 24 } },
+                        exitTransition = { fadeOut(androidx.compose.animation.core.tween(120)) },
+                        popEnterTransition = { fadeIn(androidx.compose.animation.core.tween(180)) },
+                        popExitTransition = { fadeOut(androidx.compose.animation.core.tween(120)) + slideOutHorizontally(androidx.compose.animation.core.tween(180)) { it / 24 } },
                     ) {
                         composable(Dest.Chat.route) { ChatScreen(onOpenDrawer = openDrawer) }
                         composable(Dest.Terminal.route) { TerminalScreen(onOpenDrawer = openDrawer) }
