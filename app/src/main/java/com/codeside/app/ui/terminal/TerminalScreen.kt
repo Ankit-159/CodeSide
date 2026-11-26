@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -61,6 +60,7 @@ fun TerminalScreen(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel = viewMo
 
 @Composable
 private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel = viewModel()) {
+    val termState by vm.uiState.collectAsStateWithLifecycle()
     var showInstall by remember { mutableStateOf(false) }
     var bootstrapUrl by remember { mutableStateOf("") }
     var session by remember { mutableStateOf<TerminalSession?>(null) }
@@ -77,7 +77,9 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
             val client = object : TerminalSessionClient {
                 override fun onTextChanged(changedSession: TerminalSession) { view.onScreenUpdated() }
                 override fun onTitleChanged(changedSession: TerminalSession) {}
-                override fun onSessionFinished(finishedSession: TerminalSession) {}
+                override fun onSessionFinished(finishedSession: TerminalSession) {
+                    view.post { session = null }
+                }
                 override fun onCopyTextToClipboard(session: TerminalSession, text: String?) {}
                 override fun onPasteTextFromClipboard(session: TerminalSession) {}
                 override fun onBell(session: TerminalSession) {}
@@ -132,7 +134,7 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }
@@ -159,6 +161,20 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             )
+        }
+
+        val sysLines = termState.lines.takeLast(4)
+        if (sysLines.isNotEmpty()) {
+            androidx.compose.material3.Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+            ) {
+                Column(Modifier.padding(8.dp)) {
+                    Text("System log", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    sysLines.forEach { line ->
+                        Text(line, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
         }
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
@@ -266,7 +282,7 @@ private fun LegacyTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }

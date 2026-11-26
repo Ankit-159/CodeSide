@@ -61,6 +61,7 @@ fun SettingsScreen(onOpenDrawer: () -> Unit = {}, vm: SettingsViewModel = viewMo
                         Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
                 },
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
             )
         },
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),

@@ -3,6 +3,7 @@ package com.codeside.app.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Folder
@@ -91,11 +92,15 @@ fun CodeSideApp() {
                 }
             },
         ) {
-            Scaffold { innerPadding ->
+            Scaffold(
+                contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+            ) { _ ->
                 NavHost(
                     navController = navController,
                     startDestination = Dest.Chat.route,
-                    modifier = Modifier.padding(innerPadding),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.systemBars),
                 ) {
                     composable(Dest.Chat.route) { ChatScreen(onOpenDrawer = openDrawer) }
                     composable(Dest.Terminal.route) { TerminalScreen(onOpenDrawer = openDrawer) }
