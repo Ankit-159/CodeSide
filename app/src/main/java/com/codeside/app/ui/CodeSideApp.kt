@@ -1,8 +1,10 @@
 package com.codeside.app.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -100,7 +102,7 @@ fun CodeSideApp() {
                     startDestination = Dest.Chat.route,
                     modifier = Modifier
                         .fillMaxSize()
-                        .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.systemBars),
+                        .windowInsetsPadding(WindowInsets.systemBars),
                 ) {
                     composable(Dest.Chat.route) { ChatScreen(onOpenDrawer = openDrawer) }
                     composable(Dest.Terminal.route) { TerminalScreen(onOpenDrawer = openDrawer) }
