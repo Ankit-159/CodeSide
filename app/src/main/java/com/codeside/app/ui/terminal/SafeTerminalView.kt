@@ -14,6 +14,16 @@ class SafeTerminalView @JvmOverloads constructor(
 
     val terminalView: TerminalView = TerminalView(context, attrs).apply {
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        try {
+            val px = android.util.TypedValue.applyDimension(
+                android.util.TypedValue.COMPLEX_UNIT_SP,
+                13f,
+                context.resources.displayMetrics,
+            ).toInt()
+            setTextSize(px)
+        } catch (t: Throwable) {
+            AppLog.logThrowable("TerminalView", "setTextSize failed", t)
+        }
     }
 
     init {
