@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,9 +52,11 @@ import com.codeside.app.data.model.ToolCardState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel()) {
+fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), settingsVm: com.codeside.app.ui.settings.SettingsViewModel = viewModel()) {
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val settingsState by settingsVm.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    var showQuickSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content, state.messages.lastOrNull()?.thinking) {
         if (state.messages.isNotEmpty()) {
@@ -71,6 +74,9 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel()) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showQuickSettings = true }) {
+                        Icon(Icons.Default.Settings, contentDescription = "API settings")
+                    }
                     IconButton(onClick = { vm.newChat() }) {
                         Icon(Icons.Default.Add, contentDescription = "New chat")
                     }
@@ -145,6 +151,15 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel()) {
                     )
                 }
             }
+        }
+
+        if (showQuickSettings) {
+            QuickApiSettingsDialog(
+                settingsState = settingsState,
+                onDismiss = { showQuickSettings = false },
+                onSetActive = settingsVm::setActive,
+                onSave = settingsVm::save,
+            )
         }
     }
 }
@@ -223,4 +238,57 @@ private fun ErrorCard(message: String, onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) { Text("Dismiss") }
         }
     }
+}
+
+@Composable
+private fun QuickApiSettingsDialog(
+    settingsState: com.codeside.app.data.store.SettingsState,
+    onDismiss: () -> Unit,
+    onSetActive: (String) -> Unit,
+    onSave: (com.codeside.app.data.model.ProviderProfile) -> Unit,
+) {
+    val active = settingsState.profiles.firstOrNull { it.id == settingsState.activeProfileId } ?: settingsState.profiles.firstOrNull()
+    var selectedId by remember(settingsState.activeProfileId) { mutableStateOf(settingsState.activeProfileId ?: active?.id) }
+    val selected = settingsState.profiles.firstOrNull { it.id == selectedId } ?: active
+    var baseUrl by remember(selected?.id) { mutableStateOf(selected?.baseUrl ?: "") }
+    var model by remember(selected?.id) { mutableStateOf(selected?.model ?: "") }
+    var apiKey by remember(selected?.id) { mutableStateOf(selected?.apiKey ?: "") }
+    var expanded by remember { mutableStateOf(false) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Quick API settings") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box {
+                    androidx.compose.material3.OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(selected?.name?.ifBlank { selected?.type?.name ?: "Profile" } ?: "No profile")
+                    }
+                    androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        settingsState.profiles.forEach { p ->
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(p.name.ifBlank { p.type.name }) },
+                                onClick = {
+                                    selectedId = p.id
+                                    onSetActive(p.id)
+                                    expanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text("Base URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("Model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = apiKey, onValueChange = { apiKey = it }, label = { Text("API key") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val p = selected ?: return@TextButton
+                onSave(p.copy(baseUrl = baseUrl, model = model, apiKey = apiKey))
+                onDismiss()
+            }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

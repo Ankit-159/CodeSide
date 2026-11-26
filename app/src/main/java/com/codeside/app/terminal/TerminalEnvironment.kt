@@ -48,6 +48,7 @@ class TerminalEnvironment(private val context: Context) {
             "LANG=en_US.UTF-8",
             "TERM=xterm-256color",
             "COLORTERM=truecolor",
+            "PS1=\\W \\$ ",
             "ANDROID_ROOT=/system",
             "ANDROID_DATA=/data",
             "CODESIDE_NATIVE_LIB_DIR=$nativeLibDir",
