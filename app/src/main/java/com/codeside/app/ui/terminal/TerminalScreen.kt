@@ -80,6 +80,9 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
     var altOn by remember { mutableStateOf(false) }
     var userStopped by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val termEnv = remember { com.codeside.app.terminal.TerminalEnvironment(context.applicationContext) }
+    var bootstrapped by remember { mutableStateOf(termEnv.isPrefixBootstrapped()) }
+    var allowSystemShell by remember { mutableStateOf(false) }
     val activeTab = tabs.firstOrNull { it.id == activeTabId }
     val session = activeTab?.session
 
@@ -189,9 +192,11 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
         )
     }
 
-    LaunchedEffect(terminalView, session, userStopped) {
+    LaunchedEffect(termState.lines.size) { bootstrapped = termEnv.isPrefixBootstrapped() }
+
+    LaunchedEffect(terminalView, session, userStopped, bootstrapped, allowSystemShell) {
         val v = terminalView ?: return@LaunchedEffect
-        if (session == null && !userStopped) startSession(v)
+        if (session == null && !userStopped && (bootstrapped || allowSystemShell)) startSession(v)
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).imePadding()) {
@@ -301,17 +306,34 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        if (userStopped) "Terminal stopped" else "Starting terminal...",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        if (userStopped) "Use the menu to restart the terminal." else "Launching the in-app terminal. If it fails, the error will appear above.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                    if (!bootstrapped && !allowSystemShell) {
+                        Text("Bootstrap required", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "Install a bootstrap ZIP to get pkg/apt and a working environment. Without it, many commands may be missing or fail with permission errors.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            androidx.compose.material3.Button(onClick = {
+                                if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl()
+                                showInstall = true
+                            }) { Text("Install bootstrap") }
+                            androidx.compose.material3.OutlinedButton(onClick = { allowSystemShell = true }) { Text("Use system shell") }
+                        }
+                    } else {
+                        Text(
+                            if (userStopped) "Terminal stopped" else "Starting terminal...",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            if (userStopped) "Use the menu to restart the terminal." else "Launching the in-app terminal. If it fails, the error will appear above.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
                 }
             }
         }

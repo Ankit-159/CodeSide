@@ -32,6 +32,10 @@ class TerminalEnvironment(private val context: Context) {
         return sh.canExecute() || busybox.canExecute() || File("/system/bin/sh").canExecute()
     }
 
+    fun isPrefixBootstrapped(): Boolean {
+        return File(binDir, "pkg").exists() || File(binDir, "apt").exists() || File(binDir, "bash").exists() || File(binDir, "login").exists()
+    }
+
     fun shellPath(): String {
         val candidates = listOf(
             File(binDir, "sh"),
