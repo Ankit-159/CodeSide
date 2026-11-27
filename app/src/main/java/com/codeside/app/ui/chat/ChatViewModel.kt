@@ -41,10 +41,23 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val agentTools = AgentTools(app.applicationContext)
     private val chatStore = ChatStore(app.applicationContext)
     private val json = Json { ignoreUnknownKeys = true }
-    private val _uiState = MutableStateFlow(ChatUiState(messages = chatStore.load()))
+    private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var currentCall: Cancellable? = null
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            val loaded = chatStore.load()
+            if (loaded.isNotEmpty()) {
+                viewModelScope.launch(Dispatchers.Main) {
+                    _uiState.update { state ->
+                        if (state.messages.isEmpty() && !state.isStreaming) state.copy(messages = loaded) else state
+                    }
+                }
+            }
+        }
+    }
     private val pendingToolCalls = mutableListOf<ProviderEvent.ToolCall>()
     private var pendingExecution: MutableList<ProviderEvent.ToolCall> = mutableListOf()
     private val completedToolMessages = mutableListOf<ChatMessage>()
@@ -59,12 +72,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun newChat() {
         stop()
-        chatStore.clear()
+        viewModelScope.launch(Dispatchers.IO) { chatStore.clear() }
         _uiState.update { ChatUiState() }
     }
 
     private fun persist() {
-        chatStore.save(_uiState.value.messages)
+        val snapshot = _uiState.value.messages
+        viewModelScope.launch(Dispatchers.IO) {
+            chatStore.save(snapshot)
+        }
     }
 
     fun send() {

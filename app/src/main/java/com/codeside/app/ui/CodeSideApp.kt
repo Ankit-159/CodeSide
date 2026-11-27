@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +43,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -76,13 +73,11 @@ fun CodeSideApp() {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
-    var loading by remember { mutableStateOf(true) }
     var crashText by remember { mutableStateOf(if (com.codeside.app.util.AppLog.hasCrash()) com.codeside.app.util.AppLog.readCrash() else null) }
     val app = LocalContext.current.applicationContext as com.codeside.app.CodeSideApplication
     val settings by app.settingsStore.state.collectAsStateWithLifecycle()
     val reduceMotion = settings.reduceMotion
     val isWideScreen = LocalConfiguration.current.screenWidthDp >= 600
-    LaunchedEffect(Unit) { delay(500); loading = false }
 
     Box(Modifier.fillMaxSize()) {
         ModalNavigationDrawer(
@@ -162,19 +157,6 @@ fun CodeSideApp() {
                         composable(Dest.Terminal.route) { TerminalScreen(onOpenDrawer = openDrawer) }
                         composable(Dest.Files.route) { FilesScreen(onOpenDrawer = openDrawer) }
                         composable(Dest.Settings.route) { SettingsScreen(onOpenDrawer = openDrawer) }
-                    }
-                }
-            }
-        }
-
-        if (loading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                androidx.compose.material3.Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Box(contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
                     }
                 }
             }

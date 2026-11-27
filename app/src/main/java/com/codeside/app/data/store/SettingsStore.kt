@@ -6,9 +6,15 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.codeside.app.data.model.ProviderProfile
 import com.codeside.app.data.model.ProviderType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -24,10 +30,37 @@ data class SettingsState(
 )
 
 class SettingsStore(context: Context) {
+    private val appContext = context.applicationContext
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; prettyPrint = true }
-    private val prefs: SharedPreferences = createPrefs(context.applicationContext)
-    private val _state = MutableStateFlow(load())
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val writeMutex = Mutex()
+    private val initialState = defaultState()
+    private val _state = MutableStateFlow(initialState)
     val state: StateFlow<SettingsState> = _state.asStateFlow()
+
+    @Volatile
+    private var prefs: SharedPreferences? = null
+
+    init {
+        scope.launch {
+            val p = createPrefs(appContext)
+            val loaded = load(p)
+            val toPersist: SettingsState? = synchronized(this@SettingsStore) {
+                prefs = p
+                if (_state.value == initialState) {
+                    _state.value = loaded
+                    null
+                } else {
+                    _state.value
+                }
+            }
+            if (toPersist != null) {
+                writeMutex.withLock {
+                    p.edit().putString(KEY_STATE, json.encodeToString(_state.value)).apply()
+                }
+            }
+        }
+    }
 
     private fun createPrefs(context: Context): SharedPreferences {
         return try {
@@ -47,8 +80,8 @@ class SettingsStore(context: Context) {
         }
     }
 
-    private fun load(): SettingsState {
-        val raw = prefs.getString(KEY_STATE, null) ?: return defaultState()
+    private fun load(p: SharedPreferences): SettingsState {
+        val raw = p.getString(KEY_STATE, null) ?: return defaultState()
         return try {
             val decoded = json.decodeFromString<SettingsState>(raw)
             if (decoded.profiles.isEmpty()) defaultState() else decoded
@@ -130,7 +163,12 @@ class SettingsStore(context: Context) {
 
     private fun persist(state: SettingsState) {
         _state.value = state
-        prefs.edit().putString(KEY_STATE, json.encodeToString(state)).apply()
+        val p = prefs ?: return
+        scope.launch {
+            writeMutex.withLock {
+                p.edit().putString(KEY_STATE, json.encodeToString(_state.value)).apply()
+            }
+        }
     }
 
     companion object {

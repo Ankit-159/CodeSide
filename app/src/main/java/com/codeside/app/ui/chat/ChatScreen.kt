@@ -71,6 +71,7 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
     var showModelMenu by remember { mutableStateOf(false) }
     var chatModels by remember { mutableStateOf<List<String>>(emptyList()) }
     var loadingChatModels by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content, state.messages.lastOrNull()?.thinking) {
         if (state.messages.isNotEmpty()) {
@@ -113,7 +114,7 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                         showModelMenu = true
                         if (chatModels.isEmpty() && !loadingChatModels) {
                             loadingChatModels = true
-                            kotlinx.coroutines.MainScope().launch {
+                            scope.launch {
                                 val r = com.codeside.app.data.provider.ModelFetcher.fetchModels(activeProfile)
                                 loadingChatModels = false
                                 r.onSuccess { chatModels = it }
