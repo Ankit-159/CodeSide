@@ -117,7 +117,7 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
             TopAppBar(
                 title = {
                     val title = state.sessions.firstOrNull { it.id == state.activeSessionId }?.title?.takeIf { it.isNotBlank() } ?: "CodeSide"
-                    Text(title, maxLines = 1)
+                    Text(title, maxLines = 1, modifier = Modifier.clickable { showHistory = true })
                 },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
