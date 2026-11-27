@@ -266,6 +266,20 @@ private fun QuickApiSettingsDialog(
     var model by remember(selected?.id) { mutableStateOf(selected?.model ?: "") }
     var apiKey by remember(selected?.id) { mutableStateOf(selected?.apiKey ?: "") }
     var expanded by remember { mutableStateOf(false) }
+    var models by remember(selected?.id) { mutableStateOf<List<String>>(emptyList()) }
+    var loadingModels by remember(selected?.id) { mutableStateOf(false) }
+    var modelsExpanded by remember { mutableStateOf(false) }
+    var modelsError by remember(selected?.id) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(selected?.id, baseUrl, apiKey, selected?.type) {
+        val p = selected ?: return@LaunchedEffect
+        if (p.apiKey.isBlank() && p.type != com.codeside.app.data.model.ProviderType.CUSTOM) return@LaunchedEffect
+        loadingModels = true
+        modelsError = null
+        val r = com.codeside.app.data.provider.ModelFetcher.fetchModels(p.copy(baseUrl = baseUrl, model = model, apiKey = apiKey))
+        loadingModels = false
+        r.onSuccess { models = it }.onFailure { modelsError = it.message }
+    }
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
@@ -290,7 +304,23 @@ private fun QuickApiSettingsDialog(
                     }
                 }
                 OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text("Base URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("Model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("Model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (loadingModels) Text("Fetching models...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (models.isNotEmpty()) {
+                            Box {
+                                androidx.compose.material3.OutlinedButton(onClick = { modelsExpanded = true }) { Text("Pick model (${models.size})") }
+                                androidx.compose.material3.DropdownMenu(expanded = modelsExpanded, onDismissRequest = { modelsExpanded = false }) {
+                                    models.take(80).forEach { m ->
+                                        androidx.compose.material3.DropdownMenuItem(text = { Text(m) }, onClick = { model = m; modelsExpanded = false })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (modelsError != null) Text(modelsError!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
                 OutlinedTextField(value = apiKey, onValueChange = { apiKey = it }, label = { Text("API key") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         },

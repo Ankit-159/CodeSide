@@ -1,6 +1,7 @@
 package com.codeside.app.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.codeside.app.data.model.ProviderProfile
 import com.codeside.app.data.model.ProviderType
 import com.codeside.app.terminal.BootstrapManager
@@ -227,6 +229,11 @@ private fun ProfileEditor(
 ) {
     var profile by remember(initial.id) { mutableStateOf(initial) }
     var typeExpanded by remember { mutableStateOf(false) }
+    var models by remember(initial.id) { mutableStateOf<List<String>>(emptyList()) }
+    var loadingModels by remember { mutableStateOf(false) }
+    var modelsError by remember { mutableStateOf<String?>(null) }
+    var modelsExpanded by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -252,7 +259,31 @@ private fun ProfileEditor(
             }
 
             OutlinedTextField(value = profile.baseUrl, onValueChange = { profile = profile.copy(baseUrl = it) }, label = { Text("Base URL") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = profile.model, onValueChange = { profile = profile.copy(model = it) }, label = { Text("Model") }, modifier = Modifier.fillMaxWidth())
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedTextField(value = profile.model, onValueChange = { profile = profile.copy(model = it) }, label = { Text("Model") }, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        loadingModels = true; modelsError = null
+                        scope.launch {
+                            val r = com.codeside.app.data.provider.ModelFetcher.fetchModels(profile)
+                            loadingModels = false
+                            r.onSuccess { models = it; if (it.isNotEmpty()) modelsExpanded = true }
+                                .onFailure { modelsError = it.message }
+                        }
+                    }, enabled = !loadingModels) { Text(if (loadingModels) "Fetching..." else "Fetch models") }
+                    if (models.isNotEmpty()) {
+                        Box {
+                            OutlinedButton(onClick = { modelsExpanded = true }) { Text("Pick (${models.size})") }
+                            DropdownMenu(expanded = modelsExpanded, onDismissRequest = { modelsExpanded = false }) {
+                                models.take(80).forEach { m ->
+                                    DropdownMenuItem(text = { Text(m) }, onClick = { profile = profile.copy(model = m); modelsExpanded = false })
+                                }
+                            }
+                        }
+                    }
+                }
+                if (modelsError != null) Text(modelsError!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
             OutlinedTextField(value = profile.chatPath, onValueChange = { profile = profile.copy(chatPath = it) }, label = { Text("Chat path") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(
                 value = profile.apiKey,

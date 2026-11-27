@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -80,6 +81,7 @@ fun CodeSideApp() {
     val app = LocalContext.current.applicationContext as com.codeside.app.CodeSideApplication
     val settings by app.settingsStore.state.collectAsStateWithLifecycle()
     val reduceMotion = settings.reduceMotion
+    val isWideScreen = LocalConfiguration.current.screenWidthDp >= 600
     LaunchedEffect(Unit) { delay(500); loading = false }
 
     Box(Modifier.fillMaxSize()) {
@@ -115,28 +117,30 @@ fun CodeSideApp() {
             },
         ) {
             Row(Modifier.fillMaxSize()) {
-                NavigationRail(
-                    modifier = Modifier.fillMaxHeight(),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ) {
-                    listOf(Dest.Chat, Dest.Terminal, Dest.Files, Dest.Settings).forEach { dest ->
-                        val icon = when (dest) {
-                            Dest.Chat -> Icons.AutoMirrored.Filled.Chat
-                            Dest.Terminal -> Icons.Default.Terminal
-                            Dest.Files -> Icons.Default.Folder
-                            Dest.Settings -> Icons.Default.Settings
+                if (isWideScreen) {
+                    NavigationRail(
+                        modifier = Modifier.fillMaxHeight(),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ) {
+                        listOf(Dest.Chat, Dest.Terminal, Dest.Files, Dest.Settings).forEach { dest ->
+                            val icon = when (dest) {
+                                Dest.Chat -> Icons.AutoMirrored.Filled.Chat
+                                Dest.Terminal -> Icons.Default.Terminal
+                                Dest.Files -> Icons.Default.Folder
+                                Dest.Settings -> Icons.Default.Settings
+                            }
+                            NavigationRailItem(
+                                selected = currentRoute == dest.route,
+                                onClick = {
+                                    navController.navigate(dest.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = { Icon(icon, contentDescription = dest.label) },
+                            )
                         }
-                        NavigationRailItem(
-                            selected = currentRoute == dest.route,
-                            onClick = {
-                                navController.navigate(dest.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(icon, contentDescription = dest.label) },
-                        )
                     }
                 }
                 Scaffold(
