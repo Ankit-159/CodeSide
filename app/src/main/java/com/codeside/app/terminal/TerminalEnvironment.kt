@@ -12,12 +12,17 @@ class TerminalEnvironment(private val context: Context) {
     val binDir: File = File(prefixDir, "bin")
 
     fun ensureDirectories() {
-        listOf(prefixDir, homeDir, tmpDir, binDir, File(prefixDir, "lib"), File(prefixDir, "etc")).forEach {
+        listOf(prefixDir, homeDir, tmpDir, binDir, File(prefixDir, "lib"), File(prefixDir, "etc"), File(prefixDir, "etc/profile.d")).forEach {
             it.mkdirs()
         }
         val envFile = File(homeDir, ".codeside_env")
+        runCatching { envFile.writeText("export PS1='\\W \\$ '\n") }
         runCatching {
-            envFile.writeText("export PS1='\\W \\$ '\n")
+            File(prefixDir, "etc/profile.d/codeside-prompt.sh").writeText("export PS1='\\W \\$ '\n")
+        }
+        runCatching {
+            val bashrc = File(homeDir, ".bashrc")
+            if (!bashrc.exists()) bashrc.writeText("export PS1='\\W \\$ '\n")
         }
     }
 

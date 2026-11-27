@@ -6,10 +6,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.util.zip.ZipInputStream
 
 class BootstrapManager(private val context: Context) {
     private val env = TerminalEnvironment(context)
@@ -78,8 +78,8 @@ class BootstrapManager(private val context: Context) {
     }
 
     private fun extractZip(zip: File, destDir: File) {
-        ZipInputStream(zip.inputStream().buffered()).use { zis ->
-            var entry = zis.nextEntry
+        ZipArchiveInputStream(zip.inputStream().buffered()).use { zis ->
+            var entry = zis.nextZipEntry
             while (entry != null) {
                 val outFile = safeResolve(destDir, entry.name)
                 if (entry.isDirectory) {
@@ -88,8 +88,12 @@ class BootstrapManager(private val context: Context) {
                     outFile.parentFile?.mkdirs()
                     FileOutputStream(outFile).use { fos -> zis.copyTo(fos) }
                 }
-                zis.closeEntry()
-                entry = zis.nextEntry
+                val mode = entry.unixMode
+                if (mode != 0 && mode and 0b001_001_001 != 0) {
+                    outFile.setExecutable(true, false)
+                }
+                if (mode != 0) outFile.setReadable(true, false)
+                entry = zis.nextZipEntry
             }
         }
     }
