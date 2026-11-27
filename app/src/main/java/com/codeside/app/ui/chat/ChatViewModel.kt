@@ -12,6 +12,7 @@ import com.codeside.app.data.model.ToolCardState
 import com.codeside.app.data.provider.Cancellable
 import com.codeside.app.data.provider.ProviderEvent
 import com.codeside.app.data.provider.ProviderFactory
+import com.codeside.app.data.store.ChatSessionMeta
 import com.codeside.app.data.store.ChatStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,8 @@ data class ChatUiState(
     val isStreaming: Boolean = false,
     val error: String? = null,
     val pendingApproval: PendingToolApproval? = null,
+    val sessions: List<ChatSessionMeta> = emptyList(),
+    val activeSessionId: String? = null,
 )
 
 class ChatViewModel(app: Application) : AndroidViewModel(app) {
@@ -46,21 +49,24 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private var currentCall: Cancellable? = null
 
+    private val pendingToolCalls = mutableListOf<ProviderEvent.ToolCall>()
+    private var pendingExecution: MutableList<ProviderEvent.ToolCall> = mutableListOf()
+    private val completedToolMessages = mutableListOf<ChatMessage>()
+
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            val loaded = chatStore.load()
-            if (loaded.isNotEmpty()) {
-                viewModelScope.launch(Dispatchers.Main) {
-                    _uiState.update { state ->
-                        if (state.messages.isEmpty() && !state.isStreaming) state.copy(messages = loaded) else state
-                    }
+            val sessions = chatStore.loadSessions()
+            val active = sessions.firstOrNull()
+            val messages = active?.let { chatStore.loadSession(it.id)?.messages }.orEmpty()
+            viewModelScope.launch(Dispatchers.Main) {
+                _uiState.update { state ->
+                    if (state.messages.isEmpty() && !state.isStreaming) {
+                        state.copy(messages = messages, sessions = sessions, activeSessionId = active?.id)
+                    } else state.copy(sessions = sessions, activeSessionId = state.activeSessionId ?: active?.id)
                 }
             }
         }
     }
-    private val pendingToolCalls = mutableListOf<ProviderEvent.ToolCall>()
-    private var pendingExecution: MutableList<ProviderEvent.ToolCall> = mutableListOf()
-    private val completedToolMessages = mutableListOf<ChatMessage>()
 
     fun onInputChange(value: String) {
         _uiState.update { it.copy(input = value) }
@@ -72,14 +78,72 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun newChat() {
         stop()
-        viewModelScope.launch(Dispatchers.IO) { chatStore.clear() }
-        _uiState.update { ChatUiState() }
+        viewModelScope.launch(Dispatchers.IO) {
+            val session = chatStore.createSession()
+            val sessions = chatStore.loadSessions()
+            viewModelScope.launch(Dispatchers.Main) {
+                _uiState.update { it.copy(messages = emptyList(), input = "", error = null, pendingApproval = null, isStreaming = false, sessions = sessions, activeSessionId = session.id) }
+            }
+        }
+    }
+
+    fun switchSession(id: String) {
+        if (id == _uiState.value.activeSessionId || _uiState.value.isStreaming) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val session = chatStore.loadSession(id) ?: return@launch
+            val sessions = chatStore.loadSessions()
+            viewModelScope.launch(Dispatchers.Main) {
+                _uiState.update { it.copy(messages = session.messages, sessions = sessions, activeSessionId = id, error = null, pendingApproval = null, input = it.input) }
+            }
+        }
+    }
+
+    fun deleteSession(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            chatStore.deleteSession(id)
+            var sessions = chatStore.loadSessions()
+            if (sessions.isEmpty()) {
+                chatStore.createSession()
+                sessions = chatStore.loadSessions()
+            }
+            val activeId = if (_uiState.value.activeSessionId == id) sessions.firstOrNull()?.id else _uiState.value.activeSessionId
+            val messages = activeId?.let { chatStore.loadSession(it)?.messages }.orEmpty()
+            viewModelScope.launch(Dispatchers.Main) {
+                _uiState.update { it.copy(sessions = sessions, activeSessionId = activeId, messages = if (it.activeSessionId == id) messages else it.messages) }
+            }
+        }
+    }
+
+    fun renameSession(id: String, title: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            chatStore.renameSession(id, title)
+            val sessions = chatStore.loadSessions()
+            viewModelScope.launch(Dispatchers.Main) { _uiState.update { it.copy(sessions = sessions) } }
+        }
     }
 
     private fun persist() {
         val snapshot = _uiState.value.messages
+        val sessionId = _uiState.value.activeSessionId
         viewModelScope.launch(Dispatchers.IO) {
-            chatStore.save(snapshot)
+            val sessions = chatStore.loadSessions()
+            val id = sessionId ?: sessions.firstOrNull()?.id ?: chatStore.createSession().id
+            val existing = chatStore.loadSession(id)
+            val title = existing?.title?.takeIf { it != "New chat" } ?: snapshot.firstOrNull { it.role == ChatRole.USER }?.content?.trim()?.replace("\n", " ")?.take(48).orEmpty().ifBlank { "New chat" }
+            val now = System.currentTimeMillis()
+            chatStore.saveSession(
+                com.codeside.app.data.model.ChatSession(
+                    id = id,
+                    title = title,
+                    createdAt = existing?.createdAt ?: now,
+                    updatedAt = now,
+                    messages = snapshot,
+                )
+            )
+            val updatedSessions = chatStore.loadSessions()
+            viewModelScope.launch(Dispatchers.Main) {
+                _uiState.update { it.copy(sessions = updatedSessions, activeSessionId = id) }
+            }
         }
     }
 

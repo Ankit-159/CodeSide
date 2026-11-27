@@ -39,3 +39,12 @@ data class ChatMessage(
     val toolCalls: List<ToolCallInfo> = emptyList(),
     val model: String = "",
 )
+
+@Serializable
+data class ChatSession(
+    val id: String = UUID.randomUUID().toString(),
+    val title: String = "New chat",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val messages: List<ChatMessage> = emptyList(),
+)

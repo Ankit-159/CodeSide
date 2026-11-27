@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
@@ -43,6 +46,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,9 +75,11 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
     val listState = rememberLazyListState()
     var showQuickSettings by remember { mutableStateOf(false) }
     var showModelMenu by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
     var chatModels by remember { mutableStateOf<List<String>>(emptyList()) }
     var loadingChatModels by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val historySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content, state.messages.lastOrNull()?.thinking) {
         if (state.messages.isNotEmpty()) {
@@ -82,13 +90,19 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("CodeSide") },
+                title = {
+                    val title = state.sessions.firstOrNull { it.id == state.activeSessionId }?.title?.takeIf { it.isNotBlank() } ?: "CodeSide"
+                    Text(title, maxLines = 1)
+                },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showHistory = true }) {
+                        Icon(Icons.Default.History, contentDescription = "History")
+                    }
                     IconButton(onClick = { showQuickSettings = true }) {
                         Icon(Icons.Default.Settings, contentDescription = "API settings")
                     }
@@ -197,6 +211,53 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                         imageVector = if (state.isStreaming) Icons.Default.Stop else Icons.AutoMirrored.Filled.Send,
                         contentDescription = if (state.isStreaming) "Stop" else "Send",
                     )
+                }
+            }
+        }
+
+        if (showHistory) {
+            ModalBottomSheet(
+                onDismissRequest = { showHistory = false },
+                sheetState = historySheetState,
+            ) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Chats", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        TextButton(onClick = {
+                            vm.newChat()
+                            showHistory = false
+                        }) { Text("New chat") }
+                    }
+                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                        items(state.sessions, key = { it.id }) { session ->
+                            val active = session.id == state.activeSessionId
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable {
+                                        vm.switchSession(session.id)
+                                        showHistory = false
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
+                                ),
+                            ) {
+                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(session.title.ifBlank { "New chat" }, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                                        if (session.preview.isNotBlank()) {
+                                            Text(session.preview, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                        }
+                                    }
+                                    IconButton(onClick = { vm.deleteSession(session.id) }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete chat")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
                 }
             }
         }
