@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -89,6 +90,7 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val historySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val attachLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -299,6 +301,13 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                                         if (session.preview.isNotBlank()) {
                                             Text(session.preview, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                                         }
+                                    }
+                                    IconButton(onClick = {
+                                        vm.exportSessionMarkdown(session.id) { md ->
+                                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(md))
+                                        }
+                                    }) {
+                                        Icon(Icons.Default.Share, contentDescription = "Export chat")
                                     }
                                     IconButton(onClick = { renameSessionId = session.id; renameText = session.title }) {
                                         Icon(Icons.Default.Edit, contentDescription = "Rename chat")

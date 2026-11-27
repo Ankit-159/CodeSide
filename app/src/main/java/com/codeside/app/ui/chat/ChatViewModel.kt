@@ -153,6 +153,29 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun exportSessionMarkdown(id: String, onResult: (String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val session = chatStore.loadSession(id) ?: return@launch
+            val md = buildString {
+                appendLine("# ${session.title}")
+                appendLine()
+                session.messages.forEach { m ->
+                    val role = when (m.role) {
+                        ChatRole.USER -> "User"
+                        ChatRole.ASSISTANT -> "Assistant"
+                        ChatRole.TOOL -> "Tool"
+                        ChatRole.SYSTEM -> "System"
+                    }
+                    appendLine("## $role")
+                    if (m.content.isNotBlank()) appendLine(m.content)
+                    if (m.thinking.isNotBlank()) { appendLine(); appendLine("<thinking>"); appendLine(m.thinking); appendLine("</thinking>") }
+                    appendLine()
+                }
+            }
+            viewModelScope.launch(Dispatchers.Main) { onResult(md) }
+        }
+    }
+
     private fun persist() {
         val snapshot = _uiState.value.messages
         val sessionId = _uiState.value.activeSessionId
