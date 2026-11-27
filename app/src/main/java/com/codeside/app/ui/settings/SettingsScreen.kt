@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
@@ -246,7 +246,7 @@ private fun AboutSettings(modifier: Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open GitHub", tint = MaterialTheme.colorScheme.primary)
+                    Icon(painterResource(com.codeside.app.R.drawable.ic_github), contentDescription = "Open GitHub", tint = MaterialTheme.colorScheme.primary)
                     Text("GitHub: $repoUrl", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
