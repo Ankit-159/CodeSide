@@ -178,7 +178,7 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                 }
                 if (state.error != null) {
                     item {
-                        ErrorCard(state.error!!, onDismiss = vm::clearError)
+                        ErrorCard(state.error!!, onDismiss = vm::clearError, onRetry = vm::retry)
                     }
                 }
                 item { Spacer(Modifier.height(8.dp)) }
@@ -392,13 +392,16 @@ private fun ExpandableCard(title: String, body: String) {
 }
 
 @Composable
-private fun ErrorCard(message: String, onDismiss: () -> Unit) {
+private fun ErrorCard(message: String, onDismiss: () -> Unit, onRetry: () -> Unit = {}) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f))) {
         Column(Modifier.padding(12.dp)) {
             Text("Error", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
             Spacer(Modifier.height(4.dp))
             Text(message, style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = onDismiss) { Text("Dismiss") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onRetry) { Text("Retry") }
+                TextButton(onClick = onDismiss) { Text("Dismiss") }
+            }
         }
     }
 }
