@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
@@ -76,6 +78,9 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
     var showQuickSettings by remember { mutableStateOf(false) }
     var showModelMenu by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
+    var historyQuery by remember { mutableStateOf("") }
+    var renameSessionId by remember { mutableStateOf<String?>(null) }
+    var renameText by remember { mutableStateOf("") }
     var chatModels by remember { mutableStateOf<List<String>>(emptyList()) }
     var loadingChatModels by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -163,6 +168,11 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 item { Spacer(Modifier.height(4.dp)) }
+                if (state.messages.isEmpty()) {
+                    item {
+                        EmptyChatState(onSuggestion = { vm.onInputChange(it); vm.send() })
+                    }
+                }
                 items(state.messages, key = { it.id }) { msg ->
                     MessageBubble(msg, reduceMotion = settingsState.reduceMotion)
                 }
@@ -228,8 +238,18 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                             showHistory = false
                         }) { Text("New chat") }
                     }
+                    OutlinedTextField(
+                        value = historyQuery,
+                        onValueChange = { historyQuery = it },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        placeholder = { Text("Search chats") },
+                        singleLine = true,
+                    )
+                    val filteredSessions = if (historyQuery.isBlank()) state.sessions else state.sessions.filter {
+                        it.title.contains(historyQuery, ignoreCase = true) || it.preview.contains(historyQuery, ignoreCase = true)
+                    }
                     LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
-                        items(state.sessions, key = { it.id }) { session ->
+                        items(filteredSessions, key = { it.id }) { session ->
                             val active = session.id == state.activeSessionId
                             Card(
                                 modifier = Modifier
@@ -250,6 +270,9 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                                             Text(session.preview, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                                         }
                                     }
+                                    IconButton(onClick = { renameSessionId = session.id; renameText = session.title }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Rename chat")
+                                    }
                                     IconButton(onClick = { vm.deleteSession(session.id) }) {
                                         Icon(Icons.Default.Delete, contentDescription = "Delete chat")
                                     }
@@ -260,6 +283,24 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                     Spacer(Modifier.height(16.dp))
                 }
             }
+        }
+
+        if (renameSessionId != null) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { renameSessionId = null },
+                title = { Text("Rename chat") },
+                text = {
+                    OutlinedTextField(value = renameText, onValueChange = { renameText = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val id = renameSessionId ?: return@TextButton
+                        vm.renameSession(id, renameText)
+                        renameSessionId = null
+                    }) { Text("Save") }
+                },
+                dismissButton = { TextButton(onClick = { renameSessionId = null }) { Text("Cancel") } },
+            )
         }
 
         if (showQuickSettings) {
@@ -307,6 +348,13 @@ private fun MessageBubble(msg: ChatMessage, reduceMotion: Boolean = false) {
             } else if (msg.isStreaming) {
                 if (reduceMotion) Text("…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else TypingIndicator()
+            }
+            if (!isUser && msg.content.isNotBlank() && !msg.isStreaming) {
+                val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+                Spacer(Modifier.height(4.dp))
+                TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(msg.content)) }) {
+                    Text("Copy", style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }
@@ -458,6 +506,34 @@ private fun TypingIndicator() {
                     .clip(RoundedCornerShape(50))
                     .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha))
             )
+        }
+    }
+}
+
+@Composable
+private fun EmptyChatState(onSuggestion: (String) -> Unit) {
+    val suggestions = listOf(
+        "Explain this project structure",
+        "Find bugs in my code",
+        "Write a script for my task",
+        "Help me set up the terminal",
+    )
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("What can I help you build?", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "Chat with your AI agent, run tools, and work in your workspace.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        suggestions.forEach { s ->
+            androidx.compose.material3.OutlinedButton(onClick = { onSuggestion(s) }, modifier = Modifier.fillMaxWidth()) {
+                Text(s)
+            }
         }
     }
 }
