@@ -67,6 +67,9 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
     val settingsState by settingsVm.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var showQuickSettings by remember { mutableStateOf(false) }
+    var showModelMenu by remember { mutableStateOf(false) }
+    var chatModels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var loadingChatModels by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content, state.messages.lastOrNull()?.thinking) {
         if (state.messages.isNotEmpty()) {
@@ -102,6 +105,39 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                 .padding(padding)
                 .imePadding(),
         ) {
+            val activeProfile = settingsState.profiles.firstOrNull { it.id == settingsState.activeProfileId } ?: settingsState.profiles.firstOrNull()
+            if (activeProfile != null) {
+                androidx.compose.foundation.layout.Box(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                    androidx.compose.material3.OutlinedButton(onClick = {
+                        showModelMenu = true
+                        if (chatModels.isEmpty() && !loadingChatModels) {
+                            loadingChatModels = true
+                            kotlinx.coroutines.MainScope().launch {
+                                val r = com.codeside.app.data.provider.ModelFetcher.fetchModels(activeProfile)
+                                loadingChatModels = false
+                                r.onSuccess { chatModels = it }
+                            }
+                        }
+                    }) {
+                        Text(activeProfile.model.ifBlank { "Select model" })
+                        Text(" ▾", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    androidx.compose.material3.DropdownMenu(expanded = showModelMenu, onDismissRequest = { showModelMenu = false }) {
+                        if (loadingChatModels) {
+                            androidx.compose.material3.DropdownMenuItem(text = { Text("Loading models...") }, onClick = {})
+                        }
+                        chatModels.take(80).forEach { m ->
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(m) }, onClick = {
+                                settingsVm.save(activeProfile.copy(model = m))
+                                showModelMenu = false
+                            })
+                        }
+                        if (!loadingChatModels && chatModels.isEmpty()) {
+                            androidx.compose.material3.DropdownMenuItem(text = { Text("No models fetched") }, onClick = {})
+                        }
+                    }
+                }
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -190,6 +226,10 @@ private fun MessageBubble(msg: ChatMessage, reduceMotion: Boolean = false) {
                 .then(if (reduceMotion) Modifier else Modifier.animateContentSize(animationSpec = tween(180)))
                 .padding(12.dp),
         ) {
+            if (!isUser && msg.model.isNotBlank()) {
+                Text(msg.model, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+            }
             if (msg.thinking.isNotBlank()) {
                 ExpandableCard(title = "Thinking", body = msg.thinking)
                 Spacer(Modifier.height(8.dp))

@@ -37,4 +37,5 @@ data class ChatMessage(
     val toolName: String? = null,
     val toolArgs: String? = null,
     val toolCalls: List<ToolCallInfo> = emptyList(),
+    val model: String = "",
 )

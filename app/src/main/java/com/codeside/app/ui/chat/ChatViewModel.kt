@@ -91,7 +91,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
-        val assistantMsg = ChatMessage(role = ChatRole.ASSISTANT, content = "", isStreaming = true)
+        val assistantMsg = ChatMessage(role = ChatRole.ASSISTANT, content = "", isStreaming = true, model = profile.model)
         pendingToolCalls.clear()
         _uiState.update { it.copy(messages = it.messages + assistantMsg, isStreaming = true, error = null) }
 
