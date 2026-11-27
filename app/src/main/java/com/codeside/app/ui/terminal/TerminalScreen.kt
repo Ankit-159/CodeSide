@@ -63,23 +63,35 @@ fun TerminalScreen(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel = viewMo
     }
 }
 
+private data class TermTab(val id: String = java.util.UUID.randomUUID().toString(), val title: String, var session: TerminalSession? = null)
+
 @Composable
 private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel = viewModel()) {
     val termState by vm.uiState.collectAsStateWithLifecycle()
     var showInstall by remember { mutableStateOf(false) }
     var bootstrapUrl by remember { mutableStateOf("") }
-    var session by remember { mutableStateOf<TerminalSession?>(null) }
+    val tabs = remember { androidx.compose.runtime.mutableStateListOf<TermTab>() }
+    var activeTabId by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var terminalView by remember { mutableStateOf<TerminalView?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showLog by remember { mutableStateOf(false) }
     var ctrlOn by remember { mutableStateOf(false) }
     var altOn by remember { mutableStateOf(false) }
+    var userStopped by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val activeTab = tabs.firstOrNull { it.id == activeTabId }
+    val session = activeTab?.session
 
-    fun startSession(view: TerminalView) {
+    fun startSession(view: TerminalView, tabId: String? = activeTabId) {
         try {
-            session?.finishIfRunning()
+            val tab = tabs.firstOrNull { it.id == tabId } ?: run {
+                val t = TermTab(title = "Session ${tabs.size + 1}")
+                tabs.add(t)
+                activeTabId = t.id
+                t
+            }
+            tab.session?.finishIfRunning()
             val app = context.applicationContext as CodeSideApplication
             val env = com.codeside.app.terminal.TerminalEnvironment(app)
             env.ensureDirectories()
@@ -88,7 +100,7 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                 override fun onTextChanged(changedSession: TerminalSession) { view.onScreenUpdated() }
                 override fun onTitleChanged(changedSession: TerminalSession) {}
                 override fun onSessionFinished(finishedSession: TerminalSession) {
-                    view.post { session = null }
+                    view.post { tab.session = null }
                 }
                 override fun onCopyTextToClipboard(session: TerminalSession, text: String?) {
                     if (text.isNullOrEmpty()) return
@@ -121,7 +133,8 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                 client,
             )
             view.attachSession(s)
-            session = s
+            tab.session = s
+            activeTabId = tab.id
             error = null
             view.requestFocus()
             com.codeside.app.util.AppLog.log("Terminal", "session started")
@@ -129,6 +142,13 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
             error = t.message ?: "Failed to start terminal"
             com.codeside.app.util.AppLog.logThrowable("Terminal", "startSession failed", t)
         }
+    }
+
+    fun switchToTab(view: TerminalView, id: String) {
+        activeTabId = id
+        val t = tabs.firstOrNull { it.id == id } ?: return
+        val s = t.session
+        if (s != null) view.attachSession(s) else startSession(view, id)
     }
 
     if (showInstall) {
@@ -169,18 +189,47 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
         )
     }
 
+    LaunchedEffect(terminalView, session, userStopped) {
+        val v = terminalView ?: return@LaunchedEffect
+        if (session == null && !userStopped) startSession(v)
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).imePadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, contentDescription = "Menu") }
-            Text("Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(if (tabs.size > 1) "Terminal · ${activeTab?.title ?: ""}" else "Terminal", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Box {
                 IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text(if (session == null) "Start" else "Restart") }, onClick = { showMenu = false; terminalView?.let { startSession(it) } })
-                    DropdownMenuItem(text = { Text("Stop") }, onClick = { showMenu = false; session?.finishIfRunning(); session = null })
+                    DropdownMenuItem(text = { Text("New session") }, onClick = {
+                        showMenu = false; userStopped = false
+                        val t = TermTab(title = "Session ${tabs.size + 1}")
+                        tabs.add(t)
+                        activeTabId = t.id
+                        terminalView?.let { startSession(it, t.id) }
+                    })
+                    if (tabs.size > 1) {
+                        DropdownMenuItem(text = { Text("Next session") }, onClick = {
+                            showMenu = false
+                            val idx = tabs.indexOfFirst { it.id == activeTabId }
+                            val next = tabs[(idx + 1).coerceAtLeast(0) % tabs.size]
+                            terminalView?.let { switchToTab(it, next.id) }
+                        })
+                        DropdownMenuItem(text = { Text("Close session") }, onClick = {
+                            showMenu = false
+                            val idx = tabs.indexOfFirst { it.id == activeTabId }
+                            tabs.firstOrNull { it.id == activeTabId }?.session?.finishIfRunning()
+                            if (idx >= 0) tabs.removeAt(idx)
+                            val next = tabs.lastOrNull()
+                            activeTabId = next?.id
+                            terminalView?.let { v -> if (next != null) switchToTab(v, next.id) }
+                        })
+                    }
+                    DropdownMenuItem(text = { Text("Restart") }, onClick = { showMenu = false; userStopped = false; terminalView?.let { startSession(it) } })
+                    DropdownMenuItem(text = { Text("Stop") }, onClick = { showMenu = false; userStopped = true; activeTab?.session?.finishIfRunning(); activeTab?.session = null })
                     DropdownMenuItem(text = { Text("Bootstrap") }, onClick = { showMenu = false; vm.bootstrap() })
                     DropdownMenuItem(text = { Text("Install") }, onClick = { showMenu = false; if (bootstrapUrl.isBlank()) bootstrapUrl = vm.currentBootstrapUrl(); showInstall = true })
                     DropdownMenuItem(text = { Text("System log") }, onClick = { showMenu = false; showLog = true })
@@ -253,12 +302,12 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "Terminal not started",
+                        if (userStopped) "Terminal stopped" else "Starting terminal...",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        "Press Start to launch the in-app terminal. If it fails, the error will appear above.",
+                        if (userStopped) "Use the menu to restart the terminal." else "Launching the in-app terminal. If it fails, the error will appear above.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
@@ -277,7 +326,7 @@ private fun TermuxTerminal(onOpenDrawer: () -> Unit = {}, vm: TerminalViewModel 
     }
 
     DisposableEffect(Unit) {
-        onDispose { session?.finishIfRunning() }
+        onDispose { tabs.forEach { it.session?.finishIfRunning() } }
     }
 }
 

@@ -15,6 +15,10 @@ class TerminalEnvironment(private val context: Context) {
         listOf(prefixDir, homeDir, tmpDir, binDir, File(prefixDir, "lib"), File(prefixDir, "etc")).forEach {
             it.mkdirs()
         }
+        val envFile = File(homeDir, ".codeside_env")
+        runCatching {
+            envFile.writeText("export PS1='\\W \\$ '\n")
+        }
     }
 
     fun isBootstrapInstalled(): Boolean {
@@ -39,6 +43,7 @@ class TerminalEnvironment(private val context: Context) {
         pathParts += "/system/xbin"
         val nativeLibDir = context.applicationInfo.nativeLibraryDir
         val ldPreload = File(nativeLibDir, "libcodeside-exec.so")
+        val envFile = File(homeDir, ".codeside_env")
         val env = mutableListOf(
             "HOME=${homeDir.absolutePath}",
             "PREFIX=${prefixDir.absolutePath}",
@@ -48,6 +53,7 @@ class TerminalEnvironment(private val context: Context) {
             "LANG=en_US.UTF-8",
             "TERM=xterm-256color",
             "COLORTERM=truecolor",
+            "ENV=${envFile.absolutePath}",
             "PS1=\\W \\$ ",
             "ANDROID_ROOT=/system",
             "ANDROID_DATA=/data",
