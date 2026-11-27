@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.codeside.app.data.model.ChatMessage
 import com.codeside.app.data.model.ChatRole
 import com.codeside.app.data.model.ToolCard
