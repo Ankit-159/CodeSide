@@ -29,7 +29,11 @@ fun SimpleMarkdown(text: String) {
             } else {
                 part.content.lines().forEach { line ->
                     val trimmed = line.trimEnd()
-                    if (trimmed.isBlank()) return@forEach
+                    if (trimmed.isBlank()) {
+                        androidx.compose.foundation.layout.Spacer(Modifier.padding(vertical = 2.dp))
+                        return@forEach
+                    }
+                    val isBullet = trimmed.startsWith("- ") || trimmed.startsWith("* ")
                     val style = when {
                         trimmed.startsWith("# ") -> MaterialTheme.typography.titleMedium
                         trimmed.startsWith("## ") -> MaterialTheme.typography.titleSmall
@@ -42,7 +46,7 @@ fun SimpleMarkdown(text: String) {
                         .removePrefix("# ")
                         .removePrefix("- ")
                         .removePrefix("* ")
-                    Text(clean, style = style)
+                    Text(if (isBullet) "• $clean" else clean, style = style)
                 }
             }
         }
