@@ -2,6 +2,8 @@ package com.codeside.app.ui.chat
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -31,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
@@ -85,6 +88,21 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
     var loadingChatModels by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val historySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val attachLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val name = uri.lastPathSegment?.substringAfterLast('/') ?: "attachment"
+                val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText().take(12000) }.orEmpty()
+                if (text.isNotBlank()) {
+                    val block = "\n\nAttached file: $name\n```\n$text\n```\n"
+                    val current = vm.uiState.value.input
+                    vm.onInputChange((current + block).trimStart())
+                }
+            }
+        }
+    }
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content, state.messages.lastOrNull()?.thinking) {
         if (state.messages.isNotEmpty()) {
@@ -207,6 +225,9 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                     .padding(12.dp),
                 verticalAlignment = Alignment.Bottom,
             ) {
+                IconButton(onClick = { attachLauncher.launch(arrayOf("text/*", "application/json", "application/xml", "application/javascript", "*/*")) }) {
+                    Icon(Icons.Default.AttachFile, contentDescription = "Attach file")
+                }
                 OutlinedTextField(
                     value = state.input,
                     onValueChange = vm::onInputChange,
