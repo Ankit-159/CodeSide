@@ -25,10 +25,11 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-private const val SYSTEM_PROMPT = """You are CodeSide, an AI coding agent running inside an Android app.
+private fun buildSystemPrompt(workspacePath: String): String = """You are CodeSide, an AI coding agent running inside an Android app.
 Help the user with coding, debugging, terminal commands, and file tasks in their workspace.
 Be clear, concise, and practical. When actions are needed, use available tools.
 Available tools: run_command, read_file, write_file, edit_file, list_dir, search, list_granted_folders, read_granted_uri.
+Workspace path: $workspacePath
 For destructive or sensitive actions, be careful and explain what you are doing.
 When showing code or commands, use markdown formatting."""
 
@@ -197,7 +198,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
         val system = ChatMessage(
             role = ChatRole.SYSTEM,
-            content = SYSTEM_PROMPT,
+            content = buildSystemPrompt(getApplication<Application>().filesDir.absolutePath),
         )
         val messagesForApi = listOf(system) + _uiState.value.messages.filter { !it.isStreaming && it.role != ChatRole.SYSTEM }
         val client = ProviderFactory.get(profile.type)
