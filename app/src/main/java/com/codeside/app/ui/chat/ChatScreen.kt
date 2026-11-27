@@ -188,7 +188,11 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                 item { Spacer(Modifier.height(4.dp)) }
                 if (state.messages.isEmpty()) {
                     item {
-                        EmptyChatState(onSuggestion = { vm.onInputChange(it); vm.send() })
+                        EmptyChatState(
+                            needsSetup = activeProfile == null || (activeProfile.apiKey.isBlank() && activeProfile.type != com.codeside.app.data.model.ProviderType.CUSTOM),
+                            onSuggestion = { vm.onInputChange(it); vm.send() },
+                            onOpenSettings = { showQuickSettings = true },
+                        )
                     }
                 }
                 val lastAssistantId = state.messages.lastOrNull { it.role == ChatRole.ASSISTANT && !it.isStreaming }?.id
@@ -547,7 +551,7 @@ private fun TypingIndicator() {
 }
 
 @Composable
-private fun EmptyChatState(onSuggestion: (String) -> Unit) {
+private fun EmptyChatState(needsSetup: Boolean = false, onSuggestion: (String) -> Unit, onOpenSettings: () -> Unit = {}) {
     val suggestions = listOf(
         "Explain this project structure",
         "Find bugs in my code",
@@ -565,6 +569,14 @@ private fun EmptyChatState(onSuggestion: (String) -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (needsSetup) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Set up an API provider to start chatting.", style = MaterialTheme.typography.bodyMedium)
+                    androidx.compose.material3.Button(onClick = onOpenSettings) { Text("Configure API") }
+                }
+            }
+        }
         Spacer(Modifier.height(8.dp))
         suggestions.forEach { s ->
             androidx.compose.material3.OutlinedButton(onClick = { onSuggestion(s) }, modifier = Modifier.fillMaxWidth()) {
