@@ -379,14 +379,14 @@ private fun MessageBubble(msg: ChatMessage, reduceMotion: Boolean = false, onReg
                 if (reduceMotion) Text("…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else TypingIndicator()
             }
-            if (!isUser && msg.content.isNotBlank() && !msg.isStreaming) {
+            if (msg.content.isNotBlank() && !msg.isStreaming) {
                 val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(msg.content)) }) {
                         Text("Copy", style = MaterialTheme.typography.labelSmall)
                     }
-                    if (onRegenerate != null) {
+                    if (!isUser && onRegenerate != null) {
                         TextButton(onClick = onRegenerate) {
                             Text("Regenerate", style = MaterialTheme.typography.labelSmall)
                         }
