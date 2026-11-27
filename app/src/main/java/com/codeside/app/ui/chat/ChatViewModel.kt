@@ -97,6 +97,16 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         startAssistantResponse()
     }
 
+    fun regenerate() {
+        if (_uiState.value.isStreaming) return
+        val msgs = _uiState.value.messages.toMutableList()
+        val lastUserIdx = msgs.indexOfLast { it.role == ChatRole.USER }
+        if (lastUserIdx < 0) return
+        while (msgs.size > lastUserIdx + 1) msgs.removeAt(msgs.lastIndex)
+        _uiState.update { it.copy(messages = msgs, error = null) }
+        startAssistantResponse()
+    }
+
     fun newChat() {
         stop()
         viewModelScope.launch(Dispatchers.IO) {

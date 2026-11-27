@@ -191,8 +191,13 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
                         EmptyChatState(onSuggestion = { vm.onInputChange(it); vm.send() })
                     }
                 }
+                val lastAssistantId = state.messages.lastOrNull { it.role == ChatRole.ASSISTANT && !it.isStreaming }?.id
                 items(state.messages, key = { it.id }) { msg ->
-                    MessageBubble(msg, reduceMotion = settingsState.reduceMotion)
+                    MessageBubble(
+                        msg,
+                        reduceMotion = settingsState.reduceMotion,
+                        onRegenerate = if (msg.id == lastAssistantId) vm::regenerate else null,
+                    )
                 }
                 if (state.error != null) {
                     item {
@@ -336,7 +341,7 @@ fun ChatScreen(onOpenDrawer: () -> Unit = {}, vm: ChatViewModel = viewModel(), s
 }
 
 @Composable
-private fun MessageBubble(msg: ChatMessage, reduceMotion: Boolean = false) {
+private fun MessageBubble(msg: ChatMessage, reduceMotion: Boolean = false, onRegenerate: (() -> Unit)? = null) {
     val isUser = msg.role == ChatRole.USER
     val align = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
     val bg = if (isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant
@@ -373,8 +378,15 @@ private fun MessageBubble(msg: ChatMessage, reduceMotion: Boolean = false) {
             if (!isUser && msg.content.isNotBlank() && !msg.isStreaming) {
                 val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
                 Spacer(Modifier.height(4.dp))
-                TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(msg.content)) }) {
-                    Text("Copy", style = MaterialTheme.typography.labelSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(msg.content)) }) {
+                        Text("Copy", style = MaterialTheme.typography.labelSmall)
+                    }
+                    if (onRegenerate != null) {
+                        TextButton(onClick = onRegenerate) {
+                            Text("Regenerate", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                 }
             }
         }
