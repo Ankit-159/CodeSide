@@ -418,7 +418,9 @@ private fun ToolCardView(card: ToolCard) {
 
 @Composable
 private fun ExpandableCard(title: String, body: String) {
-    var expanded by remember { mutableStateOf(false) }
+    val isError = title.contains("error", ignoreCase = true)
+    val isFileChange = title.contains("write_file", true) || title.contains("edit_file", true)
+    var expanded by remember(title, body) { mutableStateOf(isError || isFileChange) }
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)),
         modifier = Modifier.fillMaxWidth(),
@@ -429,6 +431,10 @@ private fun ExpandableCard(title: String, body: String) {
                 TextButton(onClick = { expanded = !expanded }) {
                     Text(if (expanded) "Hide" else "Show")
                 }
+            }
+            val preview = body.lineSequence().firstOrNull { it.isNotBlank() }?.take(120).orEmpty()
+            if (!expanded && preview.isNotBlank()) {
+                Text(preview, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             if (expanded) {
                 Text(body, style = MaterialTheme.typography.bodySmall)

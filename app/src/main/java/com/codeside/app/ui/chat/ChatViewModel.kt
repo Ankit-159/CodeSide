@@ -201,6 +201,43 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private fun maybeGenerateTitle() {
+        if (!settingsStore.state.value.autoGenerateChatTitles) return
+        val state = _uiState.value
+        val sessionId = state.activeSessionId ?: return
+        val session = state.sessions.firstOrNull { it.id == sessionId } ?: return
+        if (session.title != "New chat") return
+        val userMsg = state.messages.firstOrNull { it.role == ChatRole.USER }?.content.orEmpty()
+        val assistantMsg = state.messages.lastOrNull { it.role == ChatRole.ASSISTANT }?.content.orEmpty()
+        if (userMsg.isBlank() || assistantMsg.isBlank()) return
+        val profile = settingsStore.activeProfile() ?: return
+        if (profile.apiKey.isBlank() && profile.type != com.codeside.app.data.model.ProviderType.CUSTOM) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val prompt = listOf(
+                ChatMessage(role = ChatRole.SYSTEM, content = "Generate a very short chat title (3-6 words). Return only the title, no quotes."),
+                ChatMessage(role = ChatRole.USER, content = "User: ${userMsg.take(500)}\nAssistant: ${assistantMsg.take(500)}"),
+            )
+            val sb = StringBuilder()
+            val client = ProviderFactory.get(profile.type)
+            client.streamChat(profile, prompt) { event ->
+                if (event is ProviderEvent.TextDelta) sb.append(event.text)
+                if (event is ProviderEvent.Done || event is ProviderEvent.Error) {
+                    val title = sb.toString().trim().replace("\n", " ").trim('"', '\'').take(60)
+                    if (title.isNotBlank()) {
+                        viewModelScope.launch(Dispatchers.IO) {
+                            chatStore.renameSession(sessionId, title)
+                            val sessions = chatStore.loadSessions()
+                            viewModelScope.launch(Dispatchers.Main) {
+                                _uiState.update { it.copy(sessions = sessions) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fun send() {
         val text = _uiState.value.input.trim()
         if (text.isBlank() || _uiState.value.isStreaming) return
@@ -227,7 +264,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
         val assistantMsg = ChatMessage(role = ChatRole.ASSISTANT, content = "", isStreaming = true, model = profile.model)
         pendingToolCalls.clear()
-        _uiState.update { it.copy(messages = it.messages + assistantMsg, isStreaming = true, error = null) }
+        _uiState.update { state ->
+            state.copy(
+                messages = state.messages.map { if (it.isStreaming) it.copy(isStreaming = false) else it } + assistantMsg,
+                isStreaming = true,
+                error = null,
+            )
+        }
 
         val system = ChatMessage(
             role = ChatRole.SYSTEM,
@@ -281,11 +324,16 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 pendingToolCalls.clear()
                 _uiState.update { state ->
                     state.copy(
-                        isStreaming = calls.isEmpty(),
-                        messages = state.messages.map { if (it.isStreaming) it.copy(isStreaming = calls.isNotEmpty()) else it },
+                        isStreaming = calls.isNotEmpty(),
+                        messages = state.messages.map { if (it.isStreaming) it.copy(isStreaming = false) else it },
                     )
                 }
-                if (calls.isNotEmpty()) executeToolCalls(calls) else persist()
+                if (calls.isNotEmpty()) {
+                    executeToolCalls(calls)
+                } else {
+                    persist()
+                    maybeGenerateTitle()
+                }
             }
         }
     }
@@ -318,7 +366,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         val next = pendingExecution.firstOrNull() ?: run {
             val msgs = completedToolMessages.toList()
             completedToolMessages.clear()
-            _uiState.update { it.copy(messages = it.messages + msgs, isStreaming = false) }
+            _uiState.update { state ->
+                state.copy(
+                    messages = (state.messages + msgs).map { if (it.isStreaming) it.copy(isStreaming = false) else it },
+                    isStreaming = false,
+                )
+            }
             persist()
             startAssistantResponse()
             return

@@ -27,6 +27,7 @@ data class SettingsState(
     val allowedTools: List<String> = emptyList(),
     val grantedFolders: List<String> = emptyList(),
     val reduceMotion: Boolean = android.os.Build.VERSION.SDK_INT <= 23,
+    val autoGenerateChatTitles: Boolean = true,
 )
 
 class SettingsStore(context: Context) {
@@ -133,6 +134,10 @@ class SettingsStore(context: Context) {
 
     fun setReduceMotion(enabled: Boolean) {
         persist(_state.value.copy(reduceMotion = enabled))
+    }
+
+    fun setAutoGenerateChatTitles(enabled: Boolean) {
+        persist(_state.value.copy(autoGenerateChatTitles = enabled))
     }
 
     fun allowTool(name: String) {

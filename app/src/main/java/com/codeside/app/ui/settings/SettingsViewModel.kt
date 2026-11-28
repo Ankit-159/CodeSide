@@ -39,4 +39,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setReduceMotion(enabled: Boolean) {
         store.setReduceMotion(enabled)
     }
+
+    fun setAutoGenerateChatTitles(enabled: Boolean) {
+        store.setAutoGenerateChatTitles(enabled)
+    }
 }

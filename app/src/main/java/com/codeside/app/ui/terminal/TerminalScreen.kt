@@ -486,6 +486,8 @@ private fun TerminalExtraKeys(
         ExtraKey("→", active = false) { onKey("\u001B[C") }
         ExtraKey("HOME", active = false) { onKey("\u001B[H") }
         ExtraKey("END", active = false) { onKey("\u001B[F") }
+        ExtraKey("PGUP", active = false) { onKey("\u001B[5~") }
+        ExtraKey("PGDN", active = false) { onKey("\u001B[6~") }
     }
 }
 

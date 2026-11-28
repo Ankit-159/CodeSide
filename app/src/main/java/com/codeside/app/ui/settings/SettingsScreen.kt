@@ -157,6 +157,19 @@ private fun ApiSettings(modifier: Modifier, vm: SettingsViewModel) {
         }
 
         item {
+            SectionCard("Chat Behavior") {
+                Text("Control AI-assisted chat features. Disabling auto titles saves tokens.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Auto-generate chat titles", style = MaterialTheme.typography.bodyMedium)
+                        Text("Use AI to create short session titles after the first response", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = state.autoGenerateChatTitles, onCheckedChange = vm::setAutoGenerateChatTitles)
+                }
+            }
+        }
+
+        item {
             SectionCard("Allowed Tools") {
                 Text("Tools you marked “Always allow” for agent actions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (state.allowedTools.isEmpty()) {
