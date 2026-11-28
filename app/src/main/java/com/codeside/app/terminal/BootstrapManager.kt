@@ -104,23 +104,27 @@ class BootstrapManager(private val context: Context) {
         symlinks.readLines().forEach { line ->
             val trimmed = line.trim()
             if (trimmed.isEmpty()) return@forEach
-            val parts = when {
-                trimmed.contains("←") -> trimmed.split("←", limit = 2)
-                trimmed.contains("\t") -> trimmed.split("\t", limit = 2)
-                else -> trimmed.split(Regex("\\s+"), limit = 2)
-            }
-            if (parts.size != 2) return@forEach
-            val left = parts[0].trim()
-            val right = parts[1].trim()
-            if (left.isEmpty() || right.isEmpty()) return@forEach
-            // Termux SYMLINKS.txt is usually: path←target
-            val linkPath = safeResolve(prefix, left)
-            val target = right
-            try { if (linkPath.exists()) linkPath.delete() } catch (_: Throwable) {}
-            linkPath.parentFile?.mkdirs()
             try {
-                android.system.Os.symlink(target, linkPath.absolutePath)
-            } catch (_: Throwable) {
+                val parts = when {
+                    trimmed.contains("←") -> trimmed.split("←", limit = 2)
+                    trimmed.contains("\t") -> trimmed.split("\t", limit = 2)
+                    else -> trimmed.split(Regex("\\s+"), limit = 2)
+                }
+                if (parts.size != 2) return@forEach
+                val left = parts[0].trim()
+                val right = parts[1].trim()
+                if (left.isEmpty() || right.isEmpty()) return@forEach
+                // Termux SYMLINKS.txt is usually: path←target
+                val linkPath = safeResolve(prefix, left)
+                val target = right
+                try { if (linkPath.exists()) linkPath.delete() } catch (_: Throwable) {}
+                linkPath.parentFile?.mkdirs()
+                try {
+                    android.system.Os.symlink(target, linkPath.absolutePath)
+                } catch (_: Throwable) {
+                }
+            } catch (t: Throwable) {
+                com.codeside.app.util.AppLog.log("Bootstrap", "skip symlink: ${trimmed.take(120)}: ${t.message}")
             }
         }
         symlinks.delete()
